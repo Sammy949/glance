@@ -4,6 +4,7 @@ import { createRenderer } from './pipeline.js';
 import { initTheme, toggleTheme } from './theme.js';
 import { pickFile, saveFile, fromDrop, fromHandle } from './files.js';
 import { ICONS } from './icons.js';
+import { isTauri, initNativeLaunch } from './platform.js';
 
 const els = {
   content: document.getElementById('content'),
@@ -219,7 +220,10 @@ if (qFile) {
     .catch(() => {});
 }
 
-/* service worker: offline + installability */
-if ('serviceWorker' in navigator) {
+/* native (Tauri): load files glance was launched with / file-associated */
+initNativeLaunch((doc) => { loadDoc(doc); setMode('read'); });
+
+/* service worker: offline + installability (browser PWA only, not under Tauri) */
+if ('serviceWorker' in navigator && !isTauri()) {
   addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }

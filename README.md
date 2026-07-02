@@ -34,6 +34,42 @@ Open it in Chrome/Edge → **Install** from the address bar. Once installed you 
 - offline use (service worker caches the app + CDN deps after first load),
 - **double-click a `.md` to open it in glance** (File Handling API).
 
+## Desktop app (Tauri)
+
+The same web core is wrapped by a Tauri v2 shell in [`src-tauri/`](src-tauri/) for a
+native, low-footprint desktop app with **OS file association** — double-click a
+`.md` in Explorer/Finder and it opens in glance. Tauri uses the system webview
+(WebView2 on Windows — the same engine PowerToys Peek uses), so the binary is a
+few MB and idle RAM stays low.
+
+**One-time toolchain** (do this on the OS you're shipping for — Windows for the
+`.md` association):
+
+```bash
+# 1. Rust: https://rustup.rs
+# 2. Tauri CLI (cargo subcommand):
+cargo install tauri-cli --version "^2"
+# 3. (recommended) full icon set incl. .ico/.icns:
+cargo tauri icon icons/icon-512.png
+```
+
+**Run / build:**
+
+```bash
+cd src-tauri
+cargo tauri dev      # live desktop window
+cargo tauri build    # installers in src-tauri/target/release/bundle/
+```
+
+The frontend is copied into `src-tauri/frontend/` automatically by
+`build-web.mjs` (wired as Tauri's before-dev/build hook). A launched file is read
+in Rust and handed to the frontend via the `get_launch_file` command; a second
+launch is forwarded by the single-instance plugin (`open-file` event).
+
+> Note: the app still loads `markdown-it`/KaTeX from `esm.sh` at runtime, so first
+> launch needs network. Vendoring these for fully-offline native use is a planned
+> step (see roadmap).
+
 ## Use
 
 - **Open** a file, or drag-and-drop one anywhere. `Ctrl+O`.
@@ -64,8 +100,9 @@ Open it in Chrome/Edge → **Install** from the address bar. Once installed you 
 - [x] Lift the PowerToys light/dark CSS
 - [x] Edit mode with live preview + save-back
 - [x] PWA install + `.md` file handler
+- [x] Tauri v2 shell scaffolded — file association + single-instance launch
 - [ ] **V2:** folder mode — sidebar nav, relative-image resolution, live-reload
-- [ ] **Later:** Tauri wrapper for native OS file association
+- [ ] **Later:** vendor deps for fully-offline native app; native save-back path
 
 Inline math $E = mc^2$ and a block:
 
@@ -87,9 +124,16 @@ glance/
 │   ├── main.js                # orchestrator
 │   ├── pipeline.js            # markdown-it + plugins + sanitize
 │   ├── theme.js               # PowerToys light/dark CSS
-│   └── files.js               # File System Access open/save
+│   ├── files.js               # File System Access open/save
+│   ├── icons.js               # Lucide SVGs for toggling buttons
+│   └── platform.js            # Tauri bridge (native launch/file-assoc)
 ├── icons/                     # generated PWA icons + favicon
-└── scripts/generate-icons.mjs # zero-dep PNG icon generator
+├── scripts/generate-icons.mjs # zero-dep PNG icon generator
+└── src-tauri/                 # Tauri v2 desktop shell
+    ├── src/{lib,main}.rs      # launch-file reader + single-instance
+    ├── tauri.conf.json        # window, bundle, .md file associations
+    ├── build-web.mjs          # copies web app -> src-tauri/frontend
+    └── capabilities/          # v2 ACL
 ```
 
 Regenerate icons after editing the generator:

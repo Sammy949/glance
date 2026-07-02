@@ -124,3 +124,20 @@ for (const [name, size, opts] of targets) {
   fs.writeFileSync(path.join(OUT, name), buf);
   console.log('wrote', name, `(${size}x${size}, ${buf.length} bytes)`);
 }
+
+/* Tauri icon set (PNGs only; run `cargo tauri icon` to also emit .ico/.icns). */
+const TAURI = path.resolve(OUT, '..', 'src-tauri', 'icons');
+if (fs.existsSync(path.dirname(TAURI))) {
+  fs.mkdirSync(TAURI, { recursive: true });
+  const tauriTargets = [
+    ['32x32.png', 32],
+    ['128x128.png', 128],
+    ['[email protected]', 256],
+    ['icon.png', 512],
+  ];
+  for (const [name, size] of tauriTargets) {
+    const buf = encodePNG(size, size, draw(size));
+    fs.writeFileSync(path.join(TAURI, name), buf);
+    console.log('wrote', path.join('src-tauri/icons', name), `(${size}x${size})`);
+  }
+}
