@@ -3,7 +3,7 @@
  * CDN is cached at runtime (stale-while-revalidate) so glance works offline
  * after the first successful load. Bump CACHE to invalidate. */
 
-const CACHE = 'glance-v3';
+const CACHE = 'glance-v4';
 
 const SHELL = [
   './',
@@ -16,7 +16,8 @@ const SHELL = [
   './src/files.js',
   './src/icons.js',
   './src/platform.js',
-  './icons/icon.svg',
+  './icons/favicon.svg',
+  './icons/favicon-32.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
 ];
