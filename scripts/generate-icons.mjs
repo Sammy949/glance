@@ -53,7 +53,7 @@ function encodePNG(w, h, rgba) {
 }
 
 /* ---- drawing ---- */
-function draw(size, { maskable = false } = {}) {
+function draw(size, { maskable = false, plain = false } = {}) {
   const SS = 4, N = size * SS;
   const px = new Uint8ClampedArray(N * N * 4); // transparent
 
@@ -80,7 +80,7 @@ function draw(size, { maskable = false } = {}) {
     for (let x = 0; x < N; x++) {
       let c = null;
       if (maskable ? true : inRoundRect(x, y)) c = ACCENT; // background
-      const inLens = d2(x, y, cx, cy - dy) <= R * R && d2(x, y, cx, cy + dy) <= R * R;
+      const inLens = !plain && d2(x, y, cx, cy - dy) <= R * R && d2(x, y, cx, cy + dy) <= R * R;
       if (inLens) {
         c = WHITE;
         if (d2(x, y, cx, cy) <= pupilR * pupilR) c = PUPIL;
@@ -117,7 +117,7 @@ const targets = [
   ['icon-192.png', 192, {}],
   ['icon-512.png', 512, {}],
   ['icon-maskable-512.png', 512, { maskable: true }],
-  ['favicon-32.png', 32, {}],
+  ['favicon-32.png', 32, { plain: true }],
 ];
 for (const [name, size, opts] of targets) {
   const buf = encodePNG(size, size, draw(size, opts));
