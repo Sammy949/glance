@@ -3,6 +3,7 @@
 import { createRenderer } from './pipeline.js';
 import { initTheme, toggleTheme } from './theme.js';
 import { pickFile, saveFile, fromDrop, fromHandle } from './files.js';
+import { ICONS } from './icons.js';
 
 const els = {
   content: document.getElementById('content'),
@@ -71,7 +72,10 @@ function updateImages() {
 }
 
 function updateImagesButton() {
-  els.btnImages.textContent = state.imagesAllowed ? '🖼️ Hide remote' : '🖼️ Load remote';
+  els.btnImages.innerHTML = state.imagesAllowed ? ICONS.imageOff : ICONS.image;
+  const label = state.imagesAllowed ? 'Hide remote images' : 'Load remote images';
+  els.btnImages.title = label;
+  els.btnImages.setAttribute('aria-label', label);
 }
 
 /* ---------------- document lifecycle ---------------- */
@@ -106,7 +110,10 @@ function updateTitle() {
 function setMode(mode) {
   state.mode = mode;
   document.body.classList.toggle('mode-edit', mode === 'edit');
-  els.btnEdit.textContent = mode === 'edit' ? '👁 Preview' : '✏️ Edit';
+  els.btnEdit.innerHTML = mode === 'edit' ? ICONS.eye : ICONS.pencil;
+  const label = mode === 'edit' ? 'Preview (Ctrl+E)' : 'Edit (Ctrl+E)';
+  els.btnEdit.title = label;
+  els.btnEdit.setAttribute('aria-label', label);
   if (mode === 'edit') els.editor.focus();
 }
 

@@ -2,6 +2,11 @@
  * The markdown content itself is styled by the injected PowerToys theme
  * (see theme.js -> #pt-theme). These variables theme the chrome to match. */
 
+/* The [hidden] attribute must always win. ID selectors like #empty{display:flex}
+ * otherwise override the UA [hidden]{display:none} rule, leaving elements stuck
+ * visible even after el.hidden = true. */
+[hidden] { display: none !important; }
+
 body.theme-light {
   --ui-bg: rgba(255, 255, 255, .8);
   --ui-fg: #24292e;
@@ -32,13 +37,14 @@ html, body { min-height: 100%; }
 }
 #toolbar button {
   all: unset; cursor: pointer;
-  color: #e8e8e8; font-size: 13px; line-height: 1; white-space: nowrap;
-  padding: 8px 10px; border-radius: 8px;
-  display: inline-flex; align-items: center; gap: 6px;
-  transition: background .12s ease;
+  color: #e8e8e8; line-height: 0;
+  padding: 8px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .12s ease, color .12s ease;
 }
-#toolbar button:hover { background: rgba(255, 255, 255, .12); }
-#toolbar button:active { background: rgba(255, 255, 255, .22); }
+#toolbar button svg { width: 18px; height: 18px; display: block; }
+#toolbar button:hover { background: rgba(255, 255, 255, .14); }
+#toolbar button:active { background: rgba(255, 255, 255, .24); }
 #toolbar .sep { width: 1px; height: 20px; background: rgba(255, 255, 255, .18); margin: 0 3px; }
 
 /* ---------------- workspace / edit split ---------------- */
@@ -84,9 +90,11 @@ body.mode-edit #content { height: 100vh; overflow: auto; }
 #empty .actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
 #empty button {
   all: unset; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
   padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 600;
   transition: filter .12s ease, background .12s ease;
 }
+#empty button svg { width: 18px; height: 18px; }
 #empty .primary { background: #0366d6; color: #fff; }
 #empty .primary:hover { filter: brightness(1.08); }
 #empty .ghost { background: transparent; color: var(--ui-fg); border: 1px solid var(--ui-border); }
