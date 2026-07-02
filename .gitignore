@@ -1,0 +1,13 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# node (only used by scripts/, no runtime deps)
+node_modules/
+npm-debug.log*
+
+# local
+*.log

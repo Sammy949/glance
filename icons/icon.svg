@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="113" fill="#0366d6"/>
+  <clipPath id="lens">
+    <path d="M256 256 m0 0
+             A256 256 0 0 1 256 256 Z"/>
+  </clipPath>
+  <!-- almond lens = intersection of two circles, approximated with an ellipse -->
+  <ellipse cx="256" cy="256" rx="150" ry="86" fill="#ffffff"/>
+  <circle cx="256" cy="256" r="58" fill="#0b2040"/>
+  <circle cx="235" cy="235" r="18" fill="#ffffff"/>
+</svg>

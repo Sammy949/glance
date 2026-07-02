@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>glance</title>
+<meta name="description" content="A fast, fluid markdown viewer & quick editor." />
+
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#1e1e1e" />
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+<!-- KaTeX styles (math). Rendering still works if this fails to load. -->
+<link rel="stylesheet" href="https://esm.sh/katex@0.16/dist/katex.min.css" />
+
+<link rel="stylesheet" href="styles/app.css" />
+<!-- PowerToys markdown theme is injected here at runtime (light/dark). -->
+<style id="pt-theme"></style>
+</head>
+
+<body>
+  <div id="toolbar">
+    <button id="btn-open" title="Open file (Ctrl+O)">📂 Open</button>
+    <button id="btn-new" title="New file">➕ New</button>
+    <button id="btn-save" title="Save (Ctrl+S)" hidden>💾 Save</button>
+    <button id="btn-edit" title="Toggle edit (Ctrl+E)" hidden>✏️ Edit</button>
+    <div class="sep"></div>
+    <button id="btn-images" title="Toggle remote images" hidden>🖼️ Load remote</button>
+    <button id="btn-theme" title="Toggle light/dark">🌗 Theme</button>
+  </div>
+
+  <div id="drop-hint">Drop a .md file to view</div>
+
+  <div id="empty">
+    <div class="card">
+      <h1>glance</h1>
+      <p>Drop a markdown file anywhere to read it.</p>
+      <div class="actions">
+        <button class="primary" id="btn-open-2">Open a file</button>
+        <button class="ghost" id="btn-new-2">New file</button>
+      </div>
+      <p style="margin-top:16px"><kbd>Ctrl</kbd>+<kbd>O</kbd> open · <kbd>Ctrl</kbd>+<kbd>E</kbd> edit · <kbd>Ctrl</kbd>+<kbd>S</kbd> save</p>
+    </div>
+  </div>
+
+  <div id="workspace" hidden>
+    <textarea id="editor" spellcheck="false" placeholder="# Write markdown…"></textarea>
+    <div class="container" id="content"></div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

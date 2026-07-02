@@ -1,0 +1,118 @@
+/* app.css — glance's own chrome (toolbar, empty state, editor, toast).
+ * The markdown content itself is styled by the injected PowerToys theme
+ * (see theme.js -> #pt-theme). These variables theme the chrome to match. */
+
+body.theme-light {
+  --ui-bg: rgba(255, 255, 255, .8);
+  --ui-fg: #24292e;
+  --ui-border: #e1e4e8;
+  --ui-muted: #6a737d;
+  --editor-bg: #fbfcfd;
+  --editor-fg: #24292e;
+}
+body.theme-dark {
+  --ui-bg: rgba(30, 30, 30, .8);
+  --ui-fg: #d4d4d4;
+  --ui-border: #333;
+  --ui-muted: #8b8b8b;
+  --editor-bg: #181818;
+  --editor-fg: #d4d4d4;
+}
+
+html, body { min-height: 100%; }
+
+/* ---------------- toolbar ---------------- */
+#toolbar {
+  position: fixed; top: 14px; right: 14px; z-index: 1000;
+  display: flex; gap: 4px; align-items: center;
+  padding: 6px; border-radius: 12px;
+  background: rgba(30, 30, 30, .72); backdrop-filter: blur(8px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, .28);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+#toolbar button {
+  all: unset; cursor: pointer;
+  color: #e8e8e8; font-size: 13px; line-height: 1; white-space: nowrap;
+  padding: 8px 10px; border-radius: 8px;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background .12s ease;
+}
+#toolbar button:hover { background: rgba(255, 255, 255, .12); }
+#toolbar button:active { background: rgba(255, 255, 255, .22); }
+#toolbar .sep { width: 1px; height: 20px; background: rgba(255, 255, 255, .18); margin: 0 3px; }
+
+/* ---------------- workspace / edit split ---------------- */
+#workspace { min-height: 100vh; }
+
+#editor {
+  display: none;
+  box-sizing: border-box;
+  width: 100%; border: 0; outline: none; resize: none;
+  padding: 5%;
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 14px; line-height: 1.6; tab-size: 2;
+  background: var(--editor-bg); color: var(--editor-fg);
+}
+
+/* read mode: preview only. edit mode: side-by-side editor | preview. */
+body.mode-edit #workspace {
+  display: grid; grid-template-columns: 1fr 1fr; height: 100vh;
+}
+body.mode-edit #editor {
+  display: block; height: 100vh; overflow: auto;
+  border-right: 1px solid var(--ui-border);
+}
+body.mode-edit #content { height: 100vh; overflow: auto; }
+
+@media (max-width: 720px) {
+  body.mode-edit #workspace { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+  body.mode-edit #editor { height: 100%; border-right: 0; border-bottom: 1px solid var(--ui-border); }
+  body.mode-edit #content { height: 100%; }
+}
+
+/* ---------------- empty state ---------------- */
+#empty {
+  position: fixed; inset: 0; z-index: 500;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--ui-fg); pointer-events: none;
+}
+#empty .card { pointer-events: auto; }
+#empty h1 { font-size: 34px; font-weight: 700; margin: 0; letter-spacing: -.5px; border: 0; padding: 0; }
+#empty p { color: var(--ui-muted); margin: 6px 0 0; font-size: 14px; }
+#empty .actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+#empty button {
+  all: unset; cursor: pointer;
+  padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 600;
+  transition: filter .12s ease, background .12s ease;
+}
+#empty .primary { background: #0366d6; color: #fff; }
+#empty .primary:hover { filter: brightness(1.08); }
+#empty .ghost { background: transparent; color: var(--ui-fg); border: 1px solid var(--ui-border); }
+#empty .ghost:hover { background: rgba(128, 128, 128, .12); }
+#empty kbd {
+  font-family: SFMono-Regular, Consolas, monospace; font-size: 12px;
+  padding: 2px 6px; border-radius: 5px; background: rgba(128, 128, 128, .2);
+}
+
+/* ---------------- drag overlay ---------------- */
+#drop-hint {
+  position: fixed; inset: 0; z-index: 900; display: none;
+  align-items: center; justify-content: center;
+  background: rgba(3, 102, 214, .12);
+  outline: 3px dashed #0366d6; outline-offset: -16px;
+  font: 600 20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #0366d6;
+}
+body.dragging #drop-hint { display: flex; }
+
+/* ---------------- toast ---------------- */
+#toast {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(8px);
+  z-index: 1100; padding: 9px 16px; border-radius: 10px;
+  background: rgba(30, 30, 30, .92); color: #fff; font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
