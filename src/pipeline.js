@@ -53,6 +53,24 @@ export async function createRenderer() {
     }
   }
 
+  // Heading anchors: slugged ids + a subtle hover "#" permalink. Handled apart
+  // from the loop because its options reference the plugin's own permalink API.
+  try {
+    const anchorMod = await import(`${CDN}/markdown-it-anchor@9`);
+    const anchor = anchorMod.default ?? anchorMod;
+    md.use(anchor, {
+      tabIndex: false,
+      permalink: anchor.permalink.linkInsideHeader({
+        symbol: '#',
+        placement: 'after',
+        class: 'heading-anchor',
+        ariaHidden: true,
+      }),
+    });
+  } catch (e) {
+    console.warn('[glance] anchor plugin failed to load:', e);
+  }
+
   return {
     /** markdown string -> sanitized HTML string */
     render(text) {

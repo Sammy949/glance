@@ -6,6 +6,7 @@ import { pickFile, saveFile, fromDrop, fromHandle } from './files.js';
 import { ICONS } from './icons.js';
 import { isTauri, initNativeLaunch } from './platform.js';
 import * as find from './find.js';
+import { randomizeFavicon } from './favicon.js';
 
 const els = {
   content: document.getElementById('content'),
@@ -53,6 +54,7 @@ const rendererReady = createRenderer().then((r) => (renderer = r));
 
 state.theme = initTheme();
 state.readingWidth = store.get('glance.readingWidth', false);
+randomizeFavicon();
 
 /* ---------------- rendering ---------------- */
 
@@ -137,6 +139,10 @@ async function loadDoc(doc) {
   els.btnWidth.hidden = false;
   updateTitle();
   await renderPreview();
+  // one-shot enter animation (read loads only; live edits call renderPreview directly)
+  els.content.classList.remove('enter');
+  void els.content.offsetWidth;
+  els.content.classList.add('enter');
   restoreScroll();
 }
 
@@ -182,7 +188,7 @@ let scrollTimer = null;
 
 function restoreScroll() {
   const y = scrollStore[state.key] || 0;
-  window.scrollTo(0, y);
+  window.scrollTo({ top: y, left: 0, behavior: 'instant' });
 }
 
 addEventListener('scroll', () => {
