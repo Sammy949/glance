@@ -4,7 +4,7 @@ import { createRenderer } from './pipeline.js';
 import { initTheme, toggleTheme } from './theme.js';
 import { pickFile, saveFile, fromDrop, fromHandle } from './files.js';
 import { ICONS } from './icons.js';
-import { isTauri, initNativeLaunch } from './platform.js';
+import { isTauri, initNativeLaunch, watchFile } from './platform.js';
 import * as find from './find.js';
 import { randomizeFavicon } from './favicon.js';
 
@@ -144,6 +144,44 @@ async function loadDoc(doc) {
   void els.content.offsetWidth;
   els.content.classList.add('enter');
   restoreScroll();
+  startWatch(doc);
+}
+
+/* ---------------- live-reload (external edits) ---------------- */
+
+let pollTimer = null;
+let lastMod = 0;
+
+function stopWatch() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+function startWatch(doc) {
+  stopWatch();
+  if (isTauri() && doc.path) { watchFile(doc.path); return; }   // native watcher
+  if (doc.handle && doc.handle.getFile) {                        // web: poll the handle
+    doc.handle.getFile().then((f) => { lastMod = f.lastModified; }).catch(() => {});
+    pollTimer = setInterval(pollHandle, 1500);
+  }
+}
+
+async function pollHandle() {
+  if (document.hidden || !state.handle || !state.handle.getFile) return;
+  try {
+    const f = await state.handle.getFile();
+    if (f.lastModified > lastMod) { lastMod = f.lastModified; externalUpdate(await f.text()); }
+  } catch { /* file moved/removed — ignore */ }
+}
+
+/* Apply an on-disk change to the current doc, preserving scroll. Never clobbers
+ * unsaved edits. */
+function externalUpdate(text) {
+  if (text === state.text) return;
+  if (state.dirty) { flash('File changed on disk — unsaved edits kept'); return; }
+  const y = window.scrollY;
+  state.text = text;
+  els.editor.value = text;
+  renderPreview().then(() => window.scrollTo({ top: y, left: 0, behavior: 'instant' }));
 }
 
 function newDoc() {
@@ -341,8 +379,14 @@ if (qFile) {
     .catch(() => {});
 }
 
-/* native (Tauri): load files glance was launched with / file-associated */
-initNativeLaunch((doc) => { loadDoc(doc); setMode('read'); });
+/* native (Tauri): load launched/associated files + apply live file changes */
+initNativeLaunch(
+  (doc) => { loadDoc(doc); setMode('read'); },
+  (doc) => { if (doc.path && doc.path === state.key) externalUpdate(doc.text); }
+);
+
+/* web live-reload: also check the file when the window regains focus */
+addEventListener('focus', () => { pollHandle(); });
 
 /* service worker: offline + installability (browser PWA only, not under Tauri) */
 if ('serviceWorker' in navigator && !isTauri()) {
