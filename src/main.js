@@ -7,6 +7,7 @@ import { ICONS } from './icons.js';
 import { isTauri, initNativeLaunch, watchFile } from './platform.js';
 import * as find from './find.js';
 import { randomizeFavicon } from './favicon.js';
+import * as folder from './folder.js';
 
 const els = {
   content: document.getElementById('content'),
@@ -29,6 +30,13 @@ const els = {
   findPrev: document.getElementById('find-prev'),
   findNext: document.getElementById('find-next'),
   findClose: document.getElementById('find-close'),
+  btnFolder: document.getElementById('btn-folder'),
+  btnFolder2: document.getElementById('btn-folder-2'),
+  btnSidebar: document.getElementById('btn-sidebar'),
+  sidebar: document.getElementById('sidebar'),
+  folderName: document.getElementById('folder-name'),
+  fileTree: document.getElementById('file-tree'),
+  btnFolderClose: document.getElementById('btn-folder-close'),
 };
 
 const state = {
@@ -41,6 +49,8 @@ const state = {
   dirty: false,
   theme: 'light',
   readingWidth: false,
+  root: null,          // folder-mode root directory handle
+  relDir: null,        // current file's dir segments from root (null = not in folder)
 };
 
 /* tiny localStorage JSON helpers */
@@ -60,6 +70,7 @@ randomizeFavicon();
 
 async function renderPreview() {
   await rendererReady;
+  revokeObjectUrls();
   els.content.innerHTML = renderer.render(state.text);
   els.content.querySelectorAll('a[href^="http"]').forEach((a) => {
     a.target = '_blank';
@@ -67,7 +78,47 @@ async function renderPreview() {
   });
   addCopyButtons();
   markRemoteImages();
+  await resolveRelativeAssets();
   find.setContainer(els.content);
+}
+
+/* ---------------- folder mode: relative assets ---------------- */
+
+let objectUrls = [];
+function revokeObjectUrls() {
+  objectUrls.forEach((u) => URL.revokeObjectURL(u));
+  objectUrls = [];
+}
+
+/* Normalize a relative path against the current file's dir → segments from root,
+ * or null if it escapes the root or is empty. */
+function resolveRel(relPath) {
+  const base = (state.relDir || []).slice();
+  for (const p of relPath.split('/')) {
+    if (p === '' || p === '.') continue;
+    if (p === '..') { if (!base.length) return null; base.pop(); }
+    else base.push(p);
+  }
+  return base.length ? base : null;
+}
+
+/* In folder mode, swap relative <img> srcs for blob URLs read from disk. */
+async function resolveRelativeAssets() {
+  if (!state.root || state.relDir == null) return;
+  for (const img of els.content.querySelectorAll('img[src]')) {
+    const raw = img.getAttribute('src') || '';
+    if (!raw || /^(https?:|data:|blob:)/i.test(raw)) continue;
+    const segs = resolveRel(decodeURIComponent(raw.split('#')[0].split('?')[0]));
+    if (!segs) continue;
+    const res = await folder.resolveSegments(state.root, segs);
+    if (res) {
+      try {
+        const url = URL.createObjectURL(await res.fileHandle.getFile());
+        objectUrls.push(url);
+        img.src = url;
+      } catch { /* unreadable — leave as-is */ }
+    }
+  }
 }
 
 /* hover "copy" button on each code block */
@@ -130,6 +181,7 @@ async function loadDoc(doc) {
   state.key = doc.path || doc.name || 'untitled.md';
   state.text = doc.text || '';
   state.handle = doc.handle || null;
+  state.relDir = doc.relDir ?? null;
   state.dirty = false;
   els.editor.value = state.text;
   els.empty.hidden = true;
@@ -182,6 +234,99 @@ function externalUpdate(text) {
   state.text = text;
   els.editor.value = text;
   renderPreview().then(() => window.scrollTo({ top: y, left: 0, behavior: 'instant' }));
+}
+
+/* ---------------- folder mode ---------------- */
+
+async function openFolder() {
+  if (!folder.supported()) { flash('Folder mode needs a Chromium browser'); return; }
+  const dir = await folder.pickDirectory();
+  if (dir) useFolder(dir);
+}
+
+async function useFolder(dir) {
+  let tree;
+  try { tree = await folder.buildTree(dir); }
+  catch (e) { console.warn(e); flash('Could not read folder'); return; }
+
+  state.root = dir;
+  folder.saveHandle('lastDir', dir);
+  els.folderName.textContent = dir.name;
+  els.folderName.title = dir.name;
+  renderTree(tree);
+  document.body.classList.add('has-sidebar');
+  els.sidebar.hidden = false;
+  els.btnSidebar.hidden = false;
+
+  const firstBtn = els.fileTree.querySelector('.tree-file');
+  if (firstBtn) selectTreeFile(firstBtn._node, firstBtn);
+}
+
+function renderTree(root) {
+  els.fileTree.innerHTML = '';
+  els.fileTree.appendChild(buildTreeDom(root));
+}
+
+function buildTreeDom(node) {
+  const ul = document.createElement('ul');
+  for (const child of node.children) {
+    const li = document.createElement('li');
+    if (child.kind === 'dir') {
+      const btn = document.createElement('button');
+      btn.className = 'tree-dir';
+      btn.type = 'button';
+      const chev = document.createElement('span');
+      chev.className = 'chev';
+      chev.innerHTML = ICONS.chevronRight;
+      btn.append(chev);
+      btn.insertAdjacentHTML('beforeend', ICONS.folder);
+      const span = document.createElement('span');
+      span.textContent = child.name;
+      btn.append(span);
+      const sub = buildTreeDom(child);
+      btn.addEventListener('click', () => { sub.hidden = !li.classList.toggle('open'); });
+      li.classList.add('open');
+      li.append(btn, sub);
+    } else {
+      const btn = document.createElement('button');
+      btn.className = 'tree-file';
+      btn.type = 'button';
+      btn.innerHTML = ICONS.fileText;
+      const span = document.createElement('span');
+      span.textContent = child.name;
+      btn.append(span);
+      btn._node = child;
+      btn.addEventListener('click', () => selectTreeFile(child, btn));
+      li.append(btn);
+    }
+    ul.append(li);
+  }
+  return ul;
+}
+
+async function selectTreeFile(node, btn) {
+  try {
+    const file = await node.handle.getFile();
+    await loadDoc({ name: file.name, text: await file.text(), handle: node.handle, relDir: node.parentPath });
+    setMode('read');
+    setActive(btn);
+  } catch (e) { console.warn(e); flash('Could not open file'); }
+}
+
+function setActive(btn) {
+  els.fileTree.querySelectorAll('.tree-file.active').forEach((b) => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function toggleSidebar() { document.body.classList.toggle('has-sidebar'); }
+
+function closeFolder() {
+  document.body.classList.remove('has-sidebar');
+  els.sidebar.hidden = true;
+  els.btnSidebar.hidden = true;
+  state.root = null;
+  state.relDir = null;
+  folder.saveHandle('lastDir', null);
 }
 
 function newDoc() {
@@ -327,6 +472,32 @@ els.btnTheme.onclick = () => { state.theme = toggleTheme(state.theme); };
 els.btnWidth.onclick = toggleReadingWidth;
 applyReadingWidth();
 
+/* folder-mode controls */
+els.btnFolder.onclick = openFolder;
+els.btnFolder2.onclick = openFolder;
+els.btnSidebar.onclick = toggleSidebar;
+els.btnFolderClose.onclick = closeFolder;
+
+/* relative .md links inside a folder-mode doc open in-app */
+els.content.addEventListener('click', async (e) => {
+  const a = e.target.closest('a');
+  if (!a || !state.root || state.relDir == null) return;
+  const href = a.getAttribute('href') || '';
+  if (!href || /^(https?:|mailto:|#)/i.test(href)) return;
+  const path = href.split('#')[0];
+  if (!folder.MD_RE.test(path)) return;
+  e.preventDefault();
+  const segs = resolveRel(decodeURIComponent(path));
+  const res = segs && await folder.resolveSegments(state.root, segs);
+  if (!res) { flash('Linked file not found'); return; }
+  try {
+    const file = await res.fileHandle.getFile();
+    await loadDoc({ name: file.name, text: await file.text(), handle: res.fileHandle, relDir: segs.slice(0, -1) });
+    setMode('read');
+    setActive(null);
+  } catch { flash('Could not open linked file'); }
+});
+
 /* find bar controls */
 els.findInput.addEventListener('input', runFind);
 els.findInput.addEventListener('keydown', (e) => {
@@ -387,6 +558,13 @@ initNativeLaunch(
 
 /* web live-reload: also check the file when the window regains focus */
 addEventListener('focus', () => { pollHandle(); });
+
+/* restore last folder if permission is still granted (no prompt without gesture) */
+if (folder.supported()) {
+  folder.loadHandle('lastDir')
+    .then(async (dir) => { if (dir && await folder.isGranted(dir)) useFolder(dir); })
+    .catch(() => {});
+}
 
 /* service worker: offline + installability (browser PWA only, not under Tauri) */
 if ('serviceWorker' in navigator && !isTauri()) {

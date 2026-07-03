@@ -81,6 +81,19 @@ launch is forwarded by the single-instance plugin (`open-file` event).
 - **Theme** toggles light/dark (remembers your choice); code blocks are syntax-highlighted.
 - **Remote images** are blocked by default; load them per-doc with one click.
 - Scroll position is remembered per file.
+- **Live-reload**: edit a file in another editor and glance updates in place, keeping your scroll.
+
+### Folder mode
+
+Click the **folder** icon (or "Open folder" on the empty screen) to open a directory:
+
+- a sidebar **file tree** of every markdown file (folders collapsible); click to switch.
+- **relative images** (`![](assets/pic.png)`) resolve from disk, including `../` up-paths.
+- **relative `.md` links** (`[see](notes/other.md)`, `[back](../index.md)`) open in-app.
+- the panel button toggles the sidebar; the folder is remembered (re-grant on next visit).
+
+Try it on the included [`sample/`](sample/) vault. *(Chromium-only — uses the File
+System Access API.)*
 
 ## Feature check
 
@@ -100,6 +113,8 @@ launch is forwarded by the single-instance plugin (`open-file` event).
 | Reading-width toggle | (beyond Peek) | ✅ |
 | In-doc find (`Ctrl+F`) | (beyond Peek) | ✅ |
 | Scroll-position memory | (beyond Peek) | ✅ |
+| Live-reload on external edit | (beyond Peek) | ✅ |
+| Folder mode: tree + relative images/links | (beyond Peek) | ✅ |
 
 ### Demo bits
 
@@ -109,9 +124,10 @@ launch is forwarded by the single-instance plugin (`open-file` event).
 - [x] PWA install + `.md` file handler
 - [x] Tauri v2 shell scaffolded — file association + single-instance launch
 - [x] Pre-ship polish: syntax highlight + copy, reading-width, find, scroll memory
-- [ ] **Next:** native live-reload (Rust file watcher) — last first-ship feature
-- [ ] **V2:** folder mode — sidebar nav, relative-image resolution, live-reload
-- [ ] **Later:** vendor deps for fully-offline native app; native save-back path
+- [x] Native live-reload (Rust file watcher; web falls back to handle-poll)
+- [x] Folder mode (v0.2) — sidebar tree, relative images + `.md` links, remembered folder
+- [ ] **Later:** vendor deps for fully-offline native app; native save-back path;
+      per-file scroll keyed by full path; folder-wide native watch
 
 Inline math $E = mc^2$ and a block:
 

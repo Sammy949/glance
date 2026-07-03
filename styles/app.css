@@ -14,6 +14,7 @@ body.theme-light {
   --ui-muted: #6a737d;
   --editor-bg: #fbfcfd;
   --editor-fg: #24292e;
+  --sidebar-bg: #f6f8fa;
 }
 body.theme-dark {
   --ui-bg: rgba(30, 30, 30, .8);
@@ -22,7 +23,11 @@ body.theme-dark {
   --ui-muted: #8b8b8b;
   --editor-bg: #181818;
   --editor-fg: #d4d4d4;
+  --sidebar-bg: #181818;
 }
+
+:root { --sidebar-w: 264px; }
+@media (max-width: 720px) { :root { --sidebar-w: 216px; } }
 
 html, body { min-height: 100%; }
 
@@ -205,3 +210,46 @@ body { transition: background-color .25s ease, color .25s ease; }
   #content.enter, #empty, #findbar:not([hidden]) { animation: none; }
   body, #editor { transition: none; }
 }
+
+/* ---------------- folder mode: sidebar + tree ---------------- */
+#sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-w);
+  display: none; flex-direction: column; z-index: 800;
+  background: var(--sidebar-bg); border-right: 1px solid var(--ui-border);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+body.has-sidebar #sidebar { display: flex; }
+body.has-sidebar #workspace,
+body.has-sidebar #empty { margin-left: var(--sidebar-w); }
+
+#sidebar-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 11px 12px; border-bottom: 1px solid var(--ui-border);
+}
+#folder-name {
+  font-size: 12px; font-weight: 600; color: var(--ui-muted);
+  text-transform: uppercase; letter-spacing: .4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#btn-folder-close {
+  all: unset; cursor: pointer; color: var(--ui-muted); flex: none;
+  display: inline-flex; padding: 4px; border-radius: 6px;
+}
+#btn-folder-close:hover { background: rgba(128, 128, 128, .18); color: var(--ui-fg); }
+#btn-folder-close svg { width: 15px; height: 15px; }
+
+#file-tree { flex: 1; overflow: auto; padding: 8px 6px; font-size: 13px; }
+#file-tree ul { list-style: none; margin: 0; padding: 0; }
+#file-tree ul ul { margin-left: 13px; }
+#file-tree button {
+  all: unset; cursor: pointer; box-sizing: border-box; width: 100%;
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-radius: 6px; color: var(--ui-fg);
+}
+#file-tree button:hover { background: rgba(128, 128, 128, .14); }
+#file-tree button svg { width: 15px; height: 15px; flex: none; opacity: .7; }
+#file-tree span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#file-tree .tree-file.active { background: rgba(3, 102, 214, .16); color: #0366d6; font-weight: 600; }
+#file-tree .tree-file.active svg { opacity: 1; }
+#file-tree .tree-dir .chev { display: inline-flex; transition: transform .12s ease; opacity: .5; }
+#file-tree li.open > .tree-dir .chev { transform: rotate(90deg); }
