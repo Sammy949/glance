@@ -64,17 +64,17 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (sameOrigin) {
-    // cache-first for the app shell, fall back to network (and cache it)
+    // network-first for our own files: always fresh when online, cache is the
+    // offline fallback. (Cache-first here caused stale index.html/favicon until
+    // a manual cache bump — network-first removes that whole failure mode.)
     event.respondWith(
-      caches.match(req).then((cached) =>
-        cached || fetch(req).then((res) => {
-          if (res && res.ok && res.type === 'basic') {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy));
-          }
-          return res;
-        }).catch(() => cached)
-      )
+      fetch(req).then((res) => {
+        if (res && res.ok && res.type === 'basic') {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      }).catch(() => caches.match(req))
     );
   }
 });
