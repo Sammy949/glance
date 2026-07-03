@@ -5,6 +5,7 @@ import { initTheme, toggleTheme } from './theme.js';
 import { pickFile, saveFile, fromDrop, fromHandle } from './files.js';
 import { ICONS } from './icons.js';
 import { isTauri, initNativeLaunch } from './platform.js';
+import * as find from './find.js';
 
 const els = {
   content: document.getElementById('content'),
@@ -20,22 +21,38 @@ const els = {
   btnEdit: document.getElementById('btn-edit'),
   btnTheme: document.getElementById('btn-theme'),
   btnImages: document.getElementById('btn-images'),
+  btnWidth: document.getElementById('btn-width'),
+  findbar: document.getElementById('findbar'),
+  findInput: document.getElementById('find-input'),
+  findCount: document.getElementById('find-count'),
+  findPrev: document.getElementById('find-prev'),
+  findNext: document.getElementById('find-next'),
+  findClose: document.getElementById('find-close'),
 };
 
 const state = {
   name: null,
+  key: null,           // identity for scroll memory (path || name)
   text: '',
   handle: null,
   mode: 'read',        // 'read' | 'edit'
   imagesAllowed: false,
   dirty: false,
   theme: 'light',
+  readingWidth: false,
+};
+
+/* tiny localStorage JSON helpers */
+const store = {
+  get(k, fallback) { try { return JSON.parse(localStorage.getItem(k)) ?? fallback; } catch { return fallback; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
 
 let renderer = null;
 const rendererReady = createRenderer().then((r) => (renderer = r));
 
 state.theme = initTheme();
+state.readingWidth = store.get('glance.readingWidth', false);
 
 /* ---------------- rendering ---------------- */
 
@@ -46,7 +63,31 @@ async function renderPreview() {
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
   });
+  addCopyButtons();
   markRemoteImages();
+  find.setContainer(els.content);
+}
+
+/* hover "copy" button on each code block */
+function addCopyButtons() {
+  els.content.querySelectorAll('pre').forEach((pre) => {
+    const code = pre.querySelector('code');
+    if (!code) return;
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.type = 'button';
+    btn.title = 'Copy';
+    btn.setAttribute('aria-label', 'Copy code');
+    btn.innerHTML = ICONS.copy;
+    btn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(code.textContent); }
+      catch { return; }
+      btn.innerHTML = ICONS.check;
+      btn.classList.add('copied');
+      setTimeout(() => { btn.innerHTML = ICONS.copy; btn.classList.remove('copied'); }, 1200);
+    });
+    pre.appendChild(btn);
+  });
 }
 
 /* Remote images are blocked by default (Peek's privacy default). */
@@ -82,7 +123,9 @@ function updateImagesButton() {
 /* ---------------- document lifecycle ---------------- */
 
 async function loadDoc(doc) {
+  closeFind();
   state.name = doc.name || 'untitled.md';
+  state.key = doc.path || doc.name || 'untitled.md';
   state.text = doc.text || '';
   state.handle = doc.handle || null;
   state.dirty = false;
@@ -91,9 +134,10 @@ async function loadDoc(doc) {
   els.workspace.hidden = false;
   els.btnSave.hidden = false;
   els.btnEdit.hidden = false;
+  els.btnWidth.hidden = false;
   updateTitle();
   await renderPreview();
-  window.scrollTo(0, 0);
+  restoreScroll();
 }
 
 function newDoc() {
@@ -115,7 +159,65 @@ function setMode(mode) {
   const label = mode === 'edit' ? 'Preview (Ctrl+E)' : 'Edit (Ctrl+E)';
   els.btnEdit.title = label;
   els.btnEdit.setAttribute('aria-label', label);
-  if (mode === 'edit') els.editor.focus();
+  if (mode === 'edit') { closeFind(); els.editor.focus(); }
+}
+
+/* ---------------- reading width ---------------- */
+
+function applyReadingWidth() {
+  document.body.classList.toggle('reading-width', state.readingWidth);
+  els.btnWidth.setAttribute('aria-pressed', String(state.readingWidth));
+}
+
+function toggleReadingWidth() {
+  state.readingWidth = !state.readingWidth;
+  store.set('glance.readingWidth', state.readingWidth);
+  applyReadingWidth();
+}
+
+/* ---------------- scroll memory ---------------- */
+
+const scrollStore = store.get('glance.scroll', {});
+let scrollTimer = null;
+
+function restoreScroll() {
+  const y = scrollStore[state.key] || 0;
+  window.scrollTo(0, y);
+}
+
+addEventListener('scroll', () => {
+  if (state.mode !== 'read' || !state.key || els.workspace.hidden) return;
+  clearTimeout(scrollTimer);
+  scrollTimer = setTimeout(() => {
+    scrollStore[state.key] = window.scrollY;
+    store.set('glance.scroll', scrollStore);
+  }, 200);
+}, { passive: true });
+
+/* ---------------- find ---------------- */
+
+function openFind() {
+  if (els.workspace.hidden || state.mode !== 'read') return;
+  els.findbar.hidden = false;
+  els.findInput.focus();
+  els.findInput.select();
+  if (els.findInput.value) runFind();
+}
+
+function closeFind() {
+  els.findbar.hidden = true;
+  find.close();
+}
+
+function runFind() {
+  const { count, index, supported } = find.search(els.findInput.value);
+  if (supported === false) { els.findCount.textContent = 'n/a'; return; }
+  els.findCount.textContent = `${index}/${count}`;
+}
+
+function stepFind(dir) {
+  const { count, index } = find.step(dir);
+  els.findCount.textContent = `${index}/${count}`;
 }
 
 function toggleMode() {
@@ -178,6 +280,18 @@ els.btnSave.onclick = save;
 els.btnEdit.onclick = toggleMode;
 els.btnImages.onclick = () => { state.imagesAllowed = !state.imagesAllowed; updateImages(); };
 els.btnTheme.onclick = () => { state.theme = toggleTheme(state.theme); };
+els.btnWidth.onclick = toggleReadingWidth;
+applyReadingWidth();
+
+/* find bar controls */
+els.findInput.addEventListener('input', runFind);
+els.findInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); stepFind(e.shiftKey ? -1 : 1); }
+  else if (e.key === 'Escape') { e.preventDefault(); closeFind(); }
+});
+els.findNext.onclick = () => stepFind(1);
+els.findPrev.onclick = () => stepFind(-1);
+els.findClose.onclick = closeFind;
 
 addEventListener('keydown', (e) => {
   const mod = e.ctrlKey || e.metaKey;
@@ -186,6 +300,7 @@ addEventListener('keydown', (e) => {
   if (k === 'o') { e.preventDefault(); openFile(); }
   else if (k === 's') { e.preventDefault(); save(); }
   else if (k === 'e') { e.preventDefault(); toggleMode(); }
+  else if (k === 'f' && state.mode === 'read' && !els.workspace.hidden) { e.preventDefault(); openFind(); }
 });
 
 /* drag & drop */

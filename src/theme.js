@@ -8,9 +8,17 @@ export const THEME = {
 };
 
 const styleEl = document.getElementById('pt-theme');
+const hljsLink = document.getElementById('hljs-theme');
+
+// highlight.js token themes matched to our light/dark (jsdelivr).
+const HLJS = {
+  light: 'https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css',
+  dark: 'https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark.min.css',
+};
 
 export function applyTheme(name) {
   styleEl.textContent = THEME[name] || THEME.light;
+  if (hljsLink) hljsLink.href = HLJS[name] || HLJS.light;
   document.body.classList.toggle('theme-dark', name === 'dark');
   document.body.classList.toggle('theme-light', name !== 'dark');
   try { localStorage.setItem('glance.theme', name); } catch {}

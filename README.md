@@ -76,8 +76,11 @@ launch is forwarded by the single-instance plugin (`open-file` event).
 - **Edit** toggles a side-by-side editor with live preview. `Ctrl+E`.
 - **Save** writes back to the same file (File System Access API), or Save As for
   dropped/new files. `Ctrl+S`.
-- **Theme** toggles light/dark (remembers your choice).
+- **Find** in the document with `Ctrl+F` (`Enter` / `Shift+Enter` to step, `Esc` to close).
+- **Reading width** toggles a centered ~74ch column (remembers your choice).
+- **Theme** toggles light/dark (remembers your choice); code blocks are syntax-highlighted.
 - **Remote images** are blocked by default; load them per-doc with one click.
+- Scroll position is remembered per file.
 
 ## Feature check
 
@@ -93,6 +96,10 @@ launch is forwarded by the single-instance plugin (`open-file` event).
 | Remote images blocked | Peek privacy default | ✅ |
 | Edit + save-back | (beyond Peek) | ✅ |
 | Installable / offline | (beyond Peek) | ✅ |
+| Syntax highlighting + copy button | (beyond Peek) | ✅ |
+| Reading-width toggle | (beyond Peek) | ✅ |
+| In-doc find (`Ctrl+F`) | (beyond Peek) | ✅ |
+| Scroll-position memory | (beyond Peek) | ✅ |
 
 ### Demo bits
 
@@ -101,6 +108,8 @@ launch is forwarded by the single-instance plugin (`open-file` event).
 - [x] Edit mode with live preview + save-back
 - [x] PWA install + `.md` file handler
 - [x] Tauri v2 shell scaffolded — file association + single-instance launch
+- [x] Pre-ship polish: syntax highlight + copy, reading-width, find, scroll memory
+- [ ] **Next:** native live-reload (Rust file watcher) — last first-ship feature
 - [ ] **V2:** folder mode — sidebar nav, relative-image resolution, live-reload
 - [ ] **Later:** vendor deps for fully-offline native app; native save-back path
 

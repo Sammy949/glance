@@ -17,7 +17,7 @@ export async function initNativeLaunch(onFile) {
   const { listen } = window.__TAURI__.event;
 
   const deliver = (f) => {
-    if (f && typeof f.text === 'string') onFile({ name: f.name, text: f.text, handle: null });
+    if (f && typeof f.text === 'string') onFile({ name: f.name, text: f.text, path: f.path, handle: null });
   };
 
   try {

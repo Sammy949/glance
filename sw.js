@@ -3,7 +3,7 @@
  * CDN is cached at runtime (stale-while-revalidate) so glance works offline
  * after the first successful load. Bump CACHE to invalidate. */
 
-const CACHE = 'glance-v4';
+const CACHE = 'glance-v5';
 
 const SHELL = [
   './',
@@ -16,6 +16,7 @@ const SHELL = [
   './src/files.js',
   './src/icons.js',
   './src/platform.js',
+  './src/find.js',
   './icons/favicon.svg',
   './icons/favicon-32.png',
   './icons/icon-192.png',
@@ -44,8 +45,8 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
-  const isCDN = url.origin === 'https://esm.sh';
   const sameOrigin = url.origin === self.location.origin;
+  const isCDN = !sameOrigin && /^https:$/.test(url.protocol); // esm.sh, jsdelivr, katex…
 
   if (isCDN) {
     // stale-while-revalidate for CDN modules/styles

@@ -16,8 +16,25 @@ export async function createRenderer() {
   const MarkdownIt = (await import(`${CDN}/markdown-it@14`)).default;
   const DOMPurify = (await import(`${CDN}/dompurify@3`)).default;
 
+  // highlight.js "common" build (~common languages, lighter than the full bundle).
+  // Optional: if it fails to load, code blocks just render unhighlighted.
+  let hljs = null;
+  try { hljs = (await import(`${CDN}/highlight.js@11/lib/common`)).default; } catch (e) {
+    console.warn('[glance] highlight.js failed to load:', e);
+  }
+
+  const highlight = (str, lang) => {
+    if (hljs) {
+      try {
+        if (lang && hljs.getLanguage(lang)) return hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
+        return hljs.highlightAuto(str).value;
+      } catch { /* fall through */ }
+    }
+    return ''; // markdown-it applies its own escaping
+  };
+
   // breaks:true == SoftlineBreakAsHardline; linkify + GFM tables are built in.
-  const md = new MarkdownIt({ html: true, linkify: true, breaks: true, typographer: false });
+  const md = new MarkdownIt({ html: true, linkify: true, breaks: true, typographer: false, highlight });
 
   // Each plugin is optional: one failing to load must not break rendering.
   const plugins = [
