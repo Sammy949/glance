@@ -16,7 +16,7 @@ markdown renderer to the web, then pushed further.
 
 ## Run it
 
-No build step. Serve the folder and open it:
+No build step, no install, no CDN. Serve the folder and open it:
 
 ```bash
 python3 -m http.server 8123
@@ -24,7 +24,7 @@ python3 -m http.server 8123
 ```
 
 (A local server is required — ES modules and the service worker don't run from
-`file://`.)
+`file://`.) To bump dependency versions, edit and re-run `node scripts/vendor.mjs`.
 
 ## Install as an app
 
@@ -76,9 +76,9 @@ The frontend is copied into `src-tauri/frontend/` automatically by
 in Rust and handed to the frontend via the `get_launch_file` command; a second
 launch is forwarded by the single-instance plugin (`open-file` event).
 
-> Note: the app still loads `markdown-it`/KaTeX from `esm.sh` at runtime, so first
-> launch needs network. Vendoring these for fully-offline native use is a planned
-> step (see roadmap).
+> All runtime deps are vendored in [`vendor/`](vendor/) (pinned by
+> `scripts/vendor.mjs`) — the app makes **zero CDN requests**, starts instantly,
+> and works fully offline, in the browser and on desktop.
 
 ## Use
 
@@ -136,8 +136,9 @@ System Access API.)*
 - [x] Pre-ship polish: syntax highlight + copy, reading-width, find, scroll memory
 - [x] Native live-reload (Rust file watcher; web falls back to handle-poll)
 - [x] Folder mode (v0.2) — sidebar tree, relative images + `.md` links, remembered folder
-- [ ] **Later:** vendor deps for fully-offline native app; native save-back path;
-      per-file scroll keyed by full path; folder-wide native watch
+- [x] Vendored runtime deps — zero CDN, instant startup, fully offline (v0.1.1)
+- [ ] **Later:** native save-back path; per-file scroll keyed by full path;
+      folder-wide native watch
 
 Inline math $E = mc^2$ and a block:
 
