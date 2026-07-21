@@ -53,10 +53,9 @@ cargo install tauri-cli --version "^2"
 cargo tauri icon icons/icon-512.png
 ```
 
-**Run / build:**
+**Run / build** (from the repo root — the before-hooks resolve paths from there):
 
 ```bash
-cd src-tauri
 cargo tauri dev      # live desktop window
 cargo tauri build    # installers in src-tauri/target/release/bundle/
 ```

@@ -5,8 +5,8 @@
   "identifier": "com.sammy949.glance",
   "build": {
     "frontendDist": "frontend",
-    "beforeDevCommand": "node build-web.mjs",
-    "beforeBuildCommand": "node build-web.mjs"
+    "beforeDevCommand": "node src-tauri/build-web.mjs",
+    "beforeBuildCommand": "node src-tauri/build-web.mjs"
   },
   "app": {
     "withGlobalTauri": true,
