@@ -52,6 +52,49 @@ function encodePNG(w, h, rgba) {
   return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', idat), chunk('IEND', Buffer.alloc(0))]);
 }
 
+/* ---- .ico (Windows) — a container of PNG images ---- */
+function encodeICO(images) {
+  const count = images.length;
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0); // reserved
+  header.writeUInt16LE(1, 2); // type: icon
+  header.writeUInt16LE(count, 4);
+  let offset = 6 + count * 16;
+  const entries = [];
+  const datas = [];
+  for (const { size, png } of images) {
+    const e = Buffer.alloc(16);
+    e.writeUInt8(size >= 256 ? 0 : size, 0); // width (0 == 256)
+    e.writeUInt8(size >= 256 ? 0 : size, 1); // height
+    e.writeUInt8(0, 2); // palette
+    e.writeUInt8(0, 3); // reserved
+    e.writeUInt16LE(1, 4); // planes
+    e.writeUInt16LE(32, 6); // bpp
+    e.writeUInt32LE(png.length, 8);
+    e.writeUInt32LE(offset, 12);
+    entries.push(e);
+    datas.push(png);
+    offset += png.length;
+  }
+  return Buffer.concat([header, ...entries, ...datas]);
+}
+
+/* ---- .icns (macOS) — typed chunks of PNG data ---- */
+function encodeICNS(chunks) {
+  const parts = [];
+  for (const { type, png } of chunks) {
+    const head = Buffer.alloc(8);
+    head.write(type, 0, 'ascii');
+    head.writeUInt32BE(png.length + 8, 4);
+    parts.push(head, png);
+  }
+  const body = Buffer.concat(parts);
+  const header = Buffer.alloc(8);
+  header.write('icns', 0, 'ascii');
+  header.writeUInt32BE(body.length + 8, 4);
+  return Buffer.concat([header, body]);
+}
+
 /* ---- drawing ---- */
 function draw(size, { maskable = false, plain = false } = {}) {
   const SS = 4, N = size * SS;
@@ -140,4 +183,14 @@ if (fs.existsSync(path.dirname(TAURI))) {
     fs.writeFileSync(path.join(TAURI, name), buf);
     console.log('wrote', path.join('src-tauri/icons', name), `(${size}x${size})`);
   }
+
+  // Windows .ico + macOS .icns, required to bundle desktop installers.
+  const pngAt = (s) => encodePNG(s, s, draw(s));
+  const ico = encodeICO([16, 32, 48, 64, 128, 256].map((s) => ({ size: s, png: pngAt(s) })));
+  fs.writeFileSync(path.join(TAURI, 'icon.ico'), ico);
+  console.log('wrote src-tauri/icons/icon.ico', `(${ico.length} bytes)`);
+
+  const icns = encodeICNS([['ic07', 128], ['ic08', 256], ['ic09', 512]].map(([type, s]) => ({ type, png: pngAt(s) })));
+  fs.writeFileSync(path.join(TAURI, 'icon.icns'), icns);
+  console.log('wrote src-tauri/icons/icon.icns', `(${icns.length} bytes)`);
 }
