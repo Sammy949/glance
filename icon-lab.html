@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>glance — icon lab</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 40px 24px 80px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f2f4f7; color: #1c2128;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #667085; font-size: 13px; margin: 0 0 32px; }
+  .concept {
+    background: #fff; border: 1px solid #e4e7ec; border-radius: 16px;
+    padding: 24px; margin: 0 auto 28px; max-width: 980px;
+  }
+  .concept h2 { font-size: 15px; margin: 0 0 2px; }
+  .concept p { font-size: 12.5px; color: #667085; margin: 0 0 18px; }
+  .row { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
+  .cell { text-align: center; }
+  .cell .label { font-size: 10px; color: #98a2b3; margin-top: 6px; }
+  .darkstrip {
+    margin-top: 16px; background: #16191d; border-radius: 12px;
+    padding: 18px 22px; display: flex; align-items: flex-end; gap: 28px;
+  }
+  .darkstrip .label { color: #6c737f; }
+  /* fake browser tab */
+  .tab {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: #fff; border: 1px solid #d0d5dd; border-bottom: none;
+    border-radius: 9px 9px 0 0; padding: 7px 14px 7px 10px; font-size: 12px; color: #344054;
+  }
+  .tabbar { background: #dee1e6; border-radius: 10px 10px 0 0; padding: 8px 10px 0; display: inline-block; margin-top: 16px; }
+  /* fake taskbar */
+  .taskbar {
+    margin-top: 10px; display: inline-flex; gap: 10px; align-items: center;
+    background: #23272e; border-radius: 10px; padding: 8px 14px;
+  }
+  .verdict { max-width: 980px; margin: 34px auto 0; font-size: 13.5px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<h1>glance — icon lab</h1>
+<p class="sub">Peek-fold metaphor · glance blue #0366d6 · flat minimal. Each concept at 256/96/48/32/16, on dark, in a browser tab, and in a taskbar.</p>
+<div id="lab"></div>
+
+<div class="verdict" id="verdict"></div>
+
+<script>
+const BLUE = '#0366d6';
+const LIGHT = '#9cc8ff';   // fold underside
+const PAPER = '#ffffff';
+const AMBER = '#ffb02e';   // the "peek" accent
+const INK   = '#b8d4f2';   // text-bar hint on paper
+
+/* Each concept is a function of (tileFill) so the favicon-gimmick strip can
+   re-tint the tile. All flat shapes, 512 grid, tile radius 113 (~22%). */
+
+const tile = (fill) => `<rect width="512" height="512" rx="113" fill="${fill}"/>`;
+
+const CONCEPTS = [
+  {
+    id: 'A', name: 'A — Classic dog-ear',
+    blurb: 'The baseline: white page, top-right corner folded. Safe, instantly readable… and the least ownable (every file icon does this).',
+    svg: (bg = BLUE) => `
+      ${tile(bg)}
+      <path d="M172 106 H302 L386 190 V390 a16 16 0 0 1 -16 16 H172 a16 16 0 0 1 -16 -16 V122 a16 16 0 0 1 16 -16 Z" fill="${PAPER}"/>
+      <path d="M302 106 L386 190 H318 a16 16 0 0 1 -16 -16 Z" fill="${LIGHT}"/>`
+  },
+  {
+    id: 'B', name: 'B — The Lift',
+    blurb: 'Bottom-right corner mid-lift — a big 45° fold, tile blue showing through the notch. More motion: the page is being glanced under.',
+    svg: (bg = BLUE) => `
+      ${tile(bg)}
+      <path d="M172 106 H340 a16 16 0 0 1 16 16 V286 L236 406 H172 a16 16 0 0 1 -16 -16 V122 a16 16 0 0 1 16 -16 Z" fill="${PAPER}"/>
+      <path d="M356 286 L236 406 L236 286 Z" fill="${LIGHT}"/>`
+  },
+  {
+    id: 'C', name: 'C — The Peek (lift + glimpse)',
+    blurb: 'Same lift, but a sliver of warm amber revealed in the notch — literally something glimpsed beneath. One accent, still flat.',
+    svg: (bg = BLUE) => `
+      ${tile(bg)}
+      <path d="M356 286 L356 406 L236 406 Z" fill="${AMBER}"/>
+      <path d="M172 106 H340 a16 16 0 0 1 16 16 V286 L236 406 H172 a16 16 0 0 1 -16 -16 V122 a16 16 0 0 1 16 -16 Z" fill="${PAPER}"/>
+      <path d="M356 286 L236 406 L236 286 Z" fill="${LIGHT}"/>`
+  },
+  {
+    id: 'D', name: 'D — The Reader',
+    blurb: 'Concept C plus two heavy text bars: unmistakably a *document*. Bars drop out in the 16px asset (shown here as-is to judge).',
+    svg: (bg = BLUE) => `
+      ${tile(bg)}
+      <path d="M356 286 L356 406 L236 406 Z" fill="${AMBER}"/>
+      <path d="M172 106 H340 a16 16 0 0 1 16 16 V286 L236 406 H172 a16 16 0 0 1 -16 -16 V122 a16 16 0 0 1 16 -16 Z" fill="${PAPER}"/>
+      <rect x="196" y="158" width="122" height="24" rx="12" fill="${INK}"/>
+      <rect x="196" y="206" width="88" height="24" rx="12" fill="${INK}"/>
+      <path d="M356 286 L236 406 L236 286 Z" fill="${LIGHT}"/>`
+  },
+  {
+    id: 'E', name: 'E — Full-bleed Peel',
+    blurb: 'Boldest: the tile itself is the page. Its corner peels up revealing amber beneath. At 16px it stays a blue square with a snipped glowing corner — a real silhouette to own.',
+    svg: (bg = BLUE) => `
+      <path d="M113 0 H399 A113 113 0 0 1 512 113 V330 L330 512 H113 A113 113 0 0 1 0 399 V113 A113 113 0 0 1 113 0 Z" fill="${bg}"/>
+      <path d="M512 330 L512 424 A88 88 0 0 1 424 512 L330 512 Z" fill="${AMBER}"/>
+      <path d="M512 330 L330 512 L330 330 Z" fill="${LIGHT}"/>`
+  },
+];
+
+const SIZES = [256, 96, 48, 32, 16];
+const svgAt = (c, size, bg) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}">${c.svg(bg)}</svg>`;
+
+const PALETTE = ['#0366d6', '#7c3aed', '#ec4899', '#ef4444', '#f97316', '#22c55e', '#14b8a6', '#6366f1'];
+
+const lab = document.getElementById('lab');
+for (const c of CONCEPTS) {
+  const cells = SIZES.map((s) =>
+    `<div class="cell">${svgAt(c, s)}<div class="label">${s}px</div></div>`).join('');
+  const darkCells = [96, 32, 16].map((s) =>
+    `<div class="cell">${svgAt(c, s)}<div class="label">${s}px</div></div>`).join('');
+  const favicons = PALETTE.map((p) => svgAt(c, 18, p)).join(' ');
+  lab.insertAdjacentHTML('beforeend', `
+    <div class="concept">
+      <h2>${c.name}</h2>
+      <p>${c.blurb}</p>
+      <div class="row">${cells}</div>
+      <div class="darkstrip">${darkCells}
+        <div class="cell" style="margin-left:auto">
+          <div class="taskbar">${svgAt(c, 24)}${svgAt(c, 24)}</div>
+          <div class="label" style="color:#6c737f">taskbar</div>
+        </div>
+      </div>
+      <div class="tabbar"><span class="tab">${svgAt(c, 16)} README.md — glance</span></div>
+      <div style="margin-top:12px"><span class="label" style="font-size:10px;color:#98a2b3">favicon gimmick preview:</span> ${favicons}</div>
+    </div>`);
+}
+
+document.getElementById('verdict').innerHTML = `
+  <strong>My honest read:</strong> <b>C</b> is the strongest icon-craft pick — the lift gives motion,
+  the amber sliver tells the "glimpse" story, and it survives 16px cleanly.
+  <b>E</b> is the most <i>ownable</i> silhouette (nobody's dock icon is a peeling tile) and the best
+  taskbar presence, at the cost of being less literally "a document."
+  <b>A</b> is forgettable, <b>B</b> is C minus the story, <b>D</b> only earns its bars above 48px.
+  I'd ship <b>C</b> for everything, or <b>E</b> if you want maximum distinctiveness.`;
+</script>
+</body>
+</html>
