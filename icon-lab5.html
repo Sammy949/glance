@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>glance — icon lab 5 (words & arbitrary marks)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 40px 24px 80px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f2f4f7; color: #1c2128;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #667085; font-size: 13px; margin: 0 0 32px; max-width: 900px; }
+  .concept {
+    background: #fff; border: 1px solid #e4e7ec; border-radius: 16px;
+    padding: 24px; margin: 0 auto 28px; max-width: 980px;
+  }
+  .concept h2 { font-size: 15px; margin: 0 0 2px; }
+  .concept p { font-size: 12.5px; color: #667085; margin: 0 0 18px; }
+  .row { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
+  .cell { text-align: center; }
+  .cell .label { font-size: 10px; color: #98a2b3; margin-top: 6px; }
+  .darkstrip {
+    margin-top: 16px; background: #16191d; border-radius: 12px;
+    padding: 18px 22px; display: flex; align-items: flex-end; gap: 28px;
+  }
+  .darkstrip .label { color: #6c737f; }
+  .tab {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: #fff; border: 1px solid #d0d5dd; border-bottom: none;
+    border-radius: 9px 9px 0 0; padding: 7px 14px 7px 10px; font-size: 12px; color: #344054;
+  }
+  .tabbar { background: #dee1e6; border-radius: 10px 10px 0 0; padding: 8px 10px 0; display: inline-block; margin-top: 16px; }
+  .taskbar {
+    display: inline-flex; gap: 10px; align-items: center;
+    background: #23272e; border-radius: 10px; padding: 8px 14px;
+  }
+  .verdict { max-width: 980px; margin: 34px auto 0; font-size: 13.5px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<h1>glance — icon lab 5: words &amp; arbitrary marks</h1>
+<p class="sub">Round 5: marks that "just work" (Rand / distinctive-asset school) seeded by "glance" in other languages — 目 (hitome), the word's own etymology (an oblique strike), ل (lamha), and reading typography (guillemets).</p>
+<div id="lab"></div>
+<div class="verdict" id="verdict"></div>
+
+<script>
+const BLUE  = '#0366d6';
+const PAPER = '#ffffff';
+
+const tile = (fill) => `<rect width="512" height="512" rx="113" fill="${fill}"/>`;
+
+const CONCEPTS = [
+  {
+    name: 'J1 — 目 hitome ("one look")',
+    blurb: 'The kanji for "eye" is a rounded rect with horizontal bars — simultaneously an eye and a page of text. Meaning for those who see it; pure geometry for everyone else.',
+    svg: (size, bg = BLUE, fg = PAPER) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}">
+      ${tile(bg)}
+      <rect x="146" y="96" width="220" height="320" rx="40" fill="${fg}"/>
+      <rect x="186" y="188" width="140" height="34" rx="17" fill="${bg}"/>
+      <rect x="186" y="290" width="140" height="34" rx="17" fill="${bg}"/>
+    </svg>`,
+  },
+  {
+    name: 'J2 — The Oblique (etymology mark)',
+    blurb: '"glance" = Old French glacen, "to strike obliquely." A single ricochet stroke — enters, deflects, exits. Arbitrary to everyone; the word itself to us.',
+    svg: (size, bg = BLUE, fg = PAPER) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}">
+      ${tile(bg)}
+      <path d="M118 152 L256 322 L394 210" fill="none" stroke="${fg}" stroke-width="68" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
+  },
+  {
+    name: 'J3 — ل lamha (the catch of sight)',
+    blurb: 'Arabic lamha (لمحة), reduced to its first letter ل — one tall stroke sweeping into a bowl. Calligraphic, ownable, reads as abstract sail/hook to most.',
+    svg: (size, bg = BLUE, fg = PAPER) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}">
+      ${tile(bg)}
+      <path d="M330 106 V300 a96 96 0 0 1 -96 96 h-56 a60 60 0 0 1 -60 -60 v-10"
+            fill="none" stroke="${fg}" stroke-width="62" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    name: 'J4 — Guillemets (coup d’œil)',
+    blurb: 'French gave us coup d’œil — and « », the typography of quoted text. Double chevron: reading + forward speed + the Citroën proof that chevrons alone can carry a brand.',
+    svg: (size, bg = BLUE, fg = PAPER) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}">
+      ${tile(bg)}
+      <path d="M170 150 L276 256 L170 362" fill="none" stroke="${fg}" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M296 150 L402 256 L296 362" fill="none" stroke="${fg}" stroke-width="58" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>
+    </svg>`,
+  },
+];
+
+const SIZES = [256, 96, 48, 32, 16];
+const PALETTE = ['#0366d6', '#7c3aed', '#ec4899', '#ef4444', '#f97316', '#22c55e', '#14b8a6', '#6366f1'];
+
+const lab = document.getElementById('lab');
+for (const c of CONCEPTS) {
+  const cells = SIZES.map((s) => `<div class="cell">${c.svg(s)}<div class="label">${s}px</div></div>`).join('');
+  const darkCells = [96, 32, 16].map((s) => `<div class="cell">${c.svg(s)}<div class="label">${s}px</div></div>`).join('');
+  const favicons = PALETTE.map((p) => c.svg(18, p)).join(' ');
+  lab.insertAdjacentHTML('beforeend', `
+    <div class="concept">
+      <h2>${c.name}</h2>
+      <p>${c.blurb}</p>
+      <div class="row">${cells}</div>
+      <div class="darkstrip">${darkCells}
+        <div class="cell" style="margin-left:auto">
+          <div class="taskbar">${c.svg(24)}${c.svg(24)}</div>
+          <div class="label" style="color:#6c737f">taskbar</div>
+        </div>
+      </div>
+      <div class="tabbar"><span class="tab">${c.svg(16)} README.md — glance</span></div>
+      <div style="margin-top:12px"><span class="label" style="font-size:10px;color:#98a2b3">favicon gimmick preview:</span> ${favicons}</div>
+    </div>`);
+}
+
+document.getElementById('verdict').innerHTML = `
+  <strong>My honest read:</strong> <b>J1 (目)</b> is the jackpot — one shape that is an eye AND a page of
+  text, crisp at every size, and it quietly connects to the app's whole reason to exist. To anyone who
+  doesn't read kanji it's simply a strong geometric mark — which is exactly what the "just works" school
+  prescribes. <b>J2</b> is the purest arbitrary mark with a private story (the word's own etymology) but
+  flirts with reading as a heartbeat/checkmark. <b>J3</b> is elegant but the least connected to reading.
+  <b>J4</b> is proven territory (Citroën) but the least ownable. My money: <b>J1</b>, tuned.`;
+</script>
+</body>
+</html>
