@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>glance — icon lab 3 (the mark)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 40px 24px 80px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f2f4f7; color: #1c2128;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #667085; font-size: 13px; margin: 0 0 32px; }
+  .concept {
+    background: #fff; border: 1px solid #e4e7ec; border-radius: 16px;
+    padding: 24px; margin: 0 auto 28px; max-width: 980px;
+  }
+  .concept h2 { font-size: 15px; margin: 0 0 2px; }
+  .concept p { font-size: 12.5px; color: #667085; margin: 0 0 18px; }
+  .row { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
+  .cell { text-align: center; }
+  .cell .label { font-size: 10px; color: #98a2b3; margin-top: 6px; }
+  .darkstrip {
+    margin-top: 16px; background: #16191d; border-radius: 12px;
+    padding: 18px 22px; display: flex; align-items: flex-end; gap: 28px;
+  }
+  .darkstrip .label { color: #6c737f; }
+  .tab {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: #fff; border: 1px solid #d0d5dd; border-bottom: none;
+    border-radius: 9px 9px 0 0; padding: 7px 14px 7px 10px; font-size: 12px; color: #344054;
+  }
+  .tabbar { background: #dee1e6; border-radius: 10px 10px 0 0; padding: 8px 10px 0; display: inline-block; margin-top: 16px; }
+  .taskbar {
+    display: inline-flex; gap: 10px; align-items: center;
+    background: #23272e; border-radius: 10px; padding: 8px 14px;
+  }
+</style>
+</head>
+<body>
+<h1>glance — icon lab 3: the mark</h1>
+<p class="sub">Full-bleed glance-blue tile. The peel is the only mark; it reveals the same blue. (B's palette on E's coverage, distilled.)</p>
+<div id="lab"></div>
+
+<script>
+const BLUE  = '#0366d6';
+const LIGHT = '#9cc8ff';
+
+/* lighten a hex color toward white by t (0..1) — used for the favicon gimmick
+   so each palette color gets a matching fold tint */
+function tint(hex, t) {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (c) => Math.round(c + (255 - c) * t);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(mix);
+  return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+}
+function shade(hex, t) {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (c) => Math.round(c * (1 - t));
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(mix);
+  return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+}
+
+/* The mark: full-bleed rounded tile; fold underside triangle at bottom-right.
+   F = fold size; notch fill defaults to the tile color (seamless). */
+function mark(F, bg, foldFill, notchFill) {
+  const a = 512 - F;
+  return `
+    <rect width="512" height="512" rx="113" fill="${bg}"/>
+    ${notchFill && notchFill !== bg ? `<path d="M512 ${a} L512 512 L${a} 512 Z" fill="${notchFill}" clip-path="url(#tileclip)"/>` : ''}
+    <path d="M512 ${a} L${a} 512 L${a} ${a} Z" fill="${foldFill}"/>`;
+}
+const wrap = (inner, size) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}"><defs><clipPath id="tileclip"><rect width="512" height="512" rx="113"/></clipPath></defs>${inner}</svg>`;
+
+const SIZES = [256, 96, 48, 32, 16];
+const PALETTE = ['#0366d6', '#7c3aed', '#ec4899', '#ef4444', '#f97316', '#22c55e', '#14b8a6', '#6366f1'];
+
+const CONCEPTS = [
+  {
+    name: 'G1 — Seamless (the ask)',
+    blurb: 'Blue field, light-blue fold, notch is the same blue — no visible cut. One shape carries everything.',
+    svg: (size, bg = BLUE, fold = LIGHT) => wrap(mark(182, bg, fold, null), size),
+  },
+  {
+    name: 'G2 — Whisper edge',
+    blurb: 'Identical, but the notch is 6% darker than the tile — an almost-subliminal hint that the corner is lifted. Compare at 96px; invisible at 16px.',
+    svg: (size, bg = BLUE, fold = LIGHT) => wrap(mark(182, bg, fold, shade(bg, 0.06)), size),
+  },
+];
+
+const lab = document.getElementById('lab');
+for (const c of CONCEPTS) {
+  const cells = SIZES.map((s) => `<div class="cell">${c.svg(s)}<div class="label">${s}px</div></div>`).join('');
+  const darkCells = [96, 32, 16].map((s) => `<div class="cell">${c.svg(s)}<div class="label">${s}px</div></div>`).join('');
+  const favicons = PALETTE.map((p) => c.svg(18, p, tint(p, 0.6))).join(' ');
+  lab.insertAdjacentHTML('beforeend', `
+    <div class="concept">
+      <h2>${c.name}</h2>
+      <p>${c.blurb}</p>
+      <div class="row">${cells}</div>
+      <div class="darkstrip">${darkCells}
+        <div class="cell" style="margin-left:auto">
+          <div class="taskbar">${c.svg(24)}${c.svg(24)}</div>
+          <div class="label" style="color:#6c737f">taskbar</div>
+        </div>
+      </div>
+      <div class="tabbar"><span class="tab">${c.svg(16)} README.md — glance</span></div>
+      <div style="margin-top:12px"><span class="label" style="font-size:10px;color:#98a2b3">favicon gimmick (fold auto-tints per color):</span> ${favicons}</div>
+    </div>`);
+}
+
+/* fold-size tuning row for G1 */
+const sizesRow = [150, 182, 215, 250].map((F) => `
+  <div class="cell">${wrap(mark(F, BLUE, LIGHT, null), 96)}<div class="label">fold ${Math.round((F / 512) * 100)}%</div></div>
+  <div class="cell">${wrap(mark(F, BLUE, LIGHT, null), 16)}<div class="label">16px</div></div>`).join('');
+lab.insertAdjacentHTML('beforeend', `
+  <div class="concept">
+    <h2>Fold size tuning (G1)</h2>
+    <p>Same mark, four fold proportions. Current pick: 36% (matches E). Bigger = louder silhouette, smaller = more restrained.</p>
+    <div class="row">${sizesRow}</div>
+  </div>`);
+</script>
+</body>
+</html>
