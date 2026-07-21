@@ -61,6 +61,17 @@ cargo tauri dev      # live desktop window
 cargo tauri build    # installers in src-tauri/target/release/bundle/
 ```
 
+**Releasing** — installers are built by CI, no local toolchain needed:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+The `release` workflow builds Windows (`.msi`/`.exe`), macOS (`.dmg`) and Linux
+(`.deb`/`.AppImage`) on native runners and attaches them to a **draft** GitHub
+Release — review and publish it from the Releases page. It can also be run
+manually from the Actions tab (`workflow_dispatch`).
+
 The frontend is copied into `src-tauri/frontend/` automatically by
 `build-web.mjs` (wired as Tauri's before-dev/build hook). A launched file is read
 in Rust and handed to the frontend via the `get_launch_file` command; a second
