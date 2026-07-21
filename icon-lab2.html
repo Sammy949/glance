@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>glance — icon lab 2 (E×B hybrids)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 40px 24px 80px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f2f4f7; color: #1c2128;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #667085; font-size: 13px; margin: 0 0 32px; }
+  .concept {
+    background: #fff; border: 1px solid #e4e7ec; border-radius: 16px;
+    padding: 24px; margin: 0 auto 28px; max-width: 980px;
+  }
+  .concept h2 { font-size: 15px; margin: 0 0 2px; }
+  .concept p { font-size: 12.5px; color: #667085; margin: 0 0 18px; }
+  .row { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
+  .cell { text-align: center; }
+  .cell .label { font-size: 10px; color: #98a2b3; margin-top: 6px; }
+  .darkstrip {
+    margin-top: 16px; background: #16191d; border-radius: 12px;
+    padding: 18px 22px; display: flex; align-items: flex-end; gap: 28px;
+  }
+  .darkstrip .label { color: #6c737f; }
+  .midstrip {
+    margin-top: 10px; background: #7a8494; border-radius: 12px;
+    padding: 14px 22px; display: flex; align-items: flex-end; gap: 28px;
+  }
+  .tab {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: #fff; border: 1px solid #d0d5dd; border-bottom: none;
+    border-radius: 9px 9px 0 0; padding: 7px 14px 7px 10px; font-size: 12px; color: #344054;
+  }
+  .tabbar { background: #dee1e6; border-radius: 10px 10px 0 0; padding: 8px 10px 0; display: inline-block; margin-top: 16px; }
+  .taskbar {
+    display: inline-flex; gap: 10px; align-items: center;
+    background: #23272e; border-radius: 10px; padding: 8px 14px;
+  }
+  .verdict { max-width: 980px; margin: 34px auto 0; font-size: 13.5px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<h1>glance — icon lab 2: E coverage × B palette</h1>
+<p class="sub">Full-bleed peeling tile (E) in B's monochrome blues — no amber. Four takes on the notch + underside. Shown on light, mid-grey, and dark so transparency is judgeable.</p>
+<div id="lab"></div>
+<div class="verdict" id="verdict"></div>
+
+<script>
+const BLUE  = '#0366d6';
+const LIGHT = '#9cc8ff';  // B's fold underside
+const DEEP  = '#02458f';  // shadow-blue notch (solid-coverage option)
+const PAPER = '#ffffff';
+
+/* Full-bleed tile with bottom-right corner cut along (512,512-F)->(512-F,512).
+   F = fold size. Underside = reflected triangle. Notch = the cut corner. */
+function peel(F, underside, notchFill, bg) {
+  const a = 512 - F;           // cut start on each edge
+  const r = 88;                // notch corner radius (matches tile feel)
+  const tilePath = `M113 0 H399 A113 113 0 0 1 512 113 V${a} L${a} 512 H113 A113 113 0 0 1 0 399 V113 A113 113 0 0 1 113 0 Z`;
+  const notchPath = `M512 ${a} L512 ${512 - r} A${r} ${r} 0 0 1 ${512 - r} 512 L${a} 512 Z`;
+  const undersidePath = `M512 ${a} L${a} 512 L${a} ${a} Z`;
+  return `
+    ${notchFill ? `<path d="${notchPath}" fill="${notchFill}"/>` : ''}
+    <path d="${tilePath}" fill="${bg}"/>
+    <path d="${undersidePath}" fill="${underside}"/>`;
+}
+
+const CONCEPTS = [
+  {
+    id: 'F1', name: 'F1 — Cutaway, light-blue underside',
+    blurb: "The literal E×B: tile peels, notch is genuinely cut away (transparent), underside in B's light blue. Pure two-blue mark.",
+    svg: (bg = BLUE) => peel(182, LIGHT, null, bg)
+  },
+  {
+    id: 'F2', name: 'F2 — Cutaway, white underside',
+    blurb: "Same cutaway, but the fold underside is B's paper-white. Strongest contrast at 16px; the white triangle is the signature.",
+    svg: (bg = BLUE) => peel(182, PAPER, null, bg)
+  },
+  {
+    id: 'F3', name: 'F3 — Solid: deep-blue notch',
+    blurb: 'No transparency: the notch is a deeper shadow-blue, like the page lifting off a dark backing. Full square coverage everywhere (and what a maskable icon needs anyway).',
+    svg: (bg = BLUE) => peel(182, PAPER, DEEP, bg)
+  },
+  {
+    id: 'F4', name: 'F4 — Big peel (drama)',
+    blurb: 'F2 with a ~45% fold — the peel becomes the whole gesture. Maximum silhouette, flirts with losing "page" at tiny sizes.',
+    svg: (bg = BLUE) => peel(232, PAPER, null, bg)
+  },
+];
+
+const SIZES = [256, 96, 48, 32, 16];
+const svgAt = (c, size, bg) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}">${c.svg(bg)}</svg>`;
+
+const PALETTE = ['#0366d6', '#7c3aed', '#ec4899', '#ef4444', '#f97316', '#22c55e', '#14b8a6', '#6366f1'];
+
+const lab = document.getElementById('lab');
+for (const c of CONCEPTS) {
+  const cells = SIZES.map((s) =>
+    `<div class="cell">${svgAt(c, s)}<div class="label">${s}px</div></div>`).join('');
+  const darkCells = [96, 32, 16].map((s) =>
+    `<div class="cell">${svgAt(c, s)}<div class="label">${s}px</div></div>`).join('');
+  const midCells = [48, 24].map((s) =>
+    `<div class="cell">${svgAt(c, s)}<div class="label" style="color:#e6e9ee">${s}px</div></div>`).join('');
+  const favicons = PALETTE.map((p) => svgAt(c, 18, p)).join(' ');
+  lab.insertAdjacentHTML('beforeend', `
+    <div class="concept">
+      <h2>${c.name}</h2>
+      <p>${c.blurb}</p>
+      <div class="row">${cells}</div>
+      <div class="darkstrip">${darkCells}
+        <div class="cell" style="margin-left:auto">
+          <div class="taskbar">${svgAt(c, 24)}${svgAt(c, 24)}</div>
+          <div class="label" style="color:#6c737f">taskbar</div>
+        </div>
+      </div>
+      <div class="midstrip">${midCells}<span class="label" style="color:#e6e9ee;align-self:center">mid-grey (transparency check)</span></div>
+      <div class="tabbar"><span class="tab">${svgAt(c, 16)} README.md — glance</span></div>
+      <div style="margin-top:12px"><span class="label" style="font-size:10px;color:#98a2b3">favicon gimmick preview:</span> ${favicons}</div>
+    </div>`);
+}
+
+document.getElementById('verdict').innerHTML = `
+  <strong>My honest read:</strong> <b>F2</b> is the pick — B's white gives the fold real bite at 16px,
+  and the cutaway notch keeps E's ownable snipped-corner silhouette. <b>F3</b> is the same mark for
+  contexts that demand full coverage (maskable PWA icon, any no-transparency surface) — we'd ship F3's
+  geometry there automatically even if F2 is the brand mark, so they're really one system.
+  <b>F1</b> goes quiet at small sizes (light blue on blue is low contrast), and <b>F4</b> reads as an
+  abstract flag more than a page. Recommendation: <b>F2 as the mark, F3 as its solid variant.</b>`;
+</script>
+</body>
+</html>
