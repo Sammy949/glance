@@ -10,10 +10,10 @@ export const THEME = {
 const styleEl = document.getElementById('pt-theme');
 const hljsLink = document.getElementById('hljs-theme');
 
-// highlight.js token themes matched to our light/dark (jsdelivr).
+// highlight.js token themes matched to our light/dark (vendored).
 const HLJS = {
-  light: 'https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css',
-  dark: 'https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark.min.css',
+  light: 'vendor/hljs-github.min.css',
+  dark: 'vendor/hljs-github-dark.min.css',
 };
 
 export function applyTheme(name) {

@@ -11,7 +11,7 @@ const here = path.dirname(fileURLToPath(import.meta.url)); // src-tauri/
 const root = path.resolve(here, '..');                     // repo root
 const out = path.join(here, 'frontend');
 
-const ASSETS = ['index.html', 'manifest.webmanifest', 'sw.js', 'styles', 'src', 'icons'];
+const ASSETS = ['index.html', 'manifest.webmanifest', 'sw.js', 'styles', 'src', 'icons', 'vendor'];
 
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });

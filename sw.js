@@ -3,7 +3,7 @@
  * CDN is cached at runtime (stale-while-revalidate) so glance works offline
  * after the first successful load. Bump CACHE to invalidate. */
 
-const CACHE = 'glance-v7';
+const CACHE = 'glance-v8';
 
 const SHELL = [
   './',
@@ -23,6 +23,20 @@ const SHELL = [
   './icons/favicon-32.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  // vendored runtime deps (pinned by scripts/vendor.mjs); KaTeX fonts are
+  // cached at runtime on first use
+  './vendor/markdown-it.js',
+  './vendor/dompurify.js',
+  './vendor/markdown-it-emoji.js',
+  './vendor/markdown-it-footnote.js',
+  './vendor/markdown-it-deflist.js',
+  './vendor/markdown-it-task-lists.js',
+  './vendor/markdown-it-katex.js',
+  './vendor/markdown-it-anchor.js',
+  './vendor/highlight.js',
+  './vendor/hljs-github.min.css',
+  './vendor/hljs-github-dark.min.css',
+  './vendor/katex/katex.min.css',
 ];
 
 self.addEventListener('install', (event) => {
