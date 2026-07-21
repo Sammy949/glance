@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>glance — icon lab 4 (new directions)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 40px 24px 80px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f2f4f7; color: #1c2128;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #667085; font-size: 13px; margin: 0 0 32px; max-width: 900px; }
+  .concept {
+    background: #fff; border: 1px solid #e4e7ec; border-radius: 16px;
+    padding: 24px; margin: 0 auto 28px; max-width: 980px;
+  }
+  .concept h2 { font-size: 15px; margin: 0 0 2px; }
+  .concept p { font-size: 12.5px; color: #667085; margin: 0 0 18px; }
+  .row { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
+  .cell { text-align: center; }
+  .cell .label { font-size: 10px; color: #98a2b3; margin-top: 6px; }
+  .darkstrip {
+    margin-top: 16px; background: #16191d; border-radius: 12px;
+    padding: 18px 22px; display: flex; align-items: flex-end; gap: 28px;
+  }
+  .darkstrip .label { color: #6c737f; }
+  .tab {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: #fff; border: 1px solid #d0d5dd; border-bottom: none;
+    border-radius: 9px 9px 0 0; padding: 7px 14px 7px 10px; font-size: 12px; color: #344054;
+  }
+  .tabbar { background: #dee1e6; border-radius: 10px 10px 0 0; padding: 8px 10px 0; display: inline-block; margin-top: 16px; }
+  .taskbar {
+    display: inline-flex; gap: 10px; align-items: center;
+    background: #23272e; border-radius: 10px; padding: 8px 14px;
+  }
+  .verdict { max-width: 980px; margin: 34px auto 0; font-size: 13.5px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<h1>glance — icon lab 4: new directions</h1>
+<p class="sub">Research-led round: the memorable marks hide the promise in the mark (FedEx arrow), chevrons are the grammar of speed, and <code>&gt;</code> is literally markdown syntax. Four directions, all flat, all glance-blue family.</p>
+<div id="lab"></div>
+<div class="verdict" id="verdict"></div>
+
+<script>
+const BLUE  = '#0366d6';
+const MID   = '#5a9fe8';
+const LIGHT = '#9cc8ff';
+const PAPER = '#ffffff';
+
+const tile = (fill) => `<rect width="512" height="512" rx="113" fill="${fill}"/>`;
+
+function tint(hex, t) {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (c) => Math.round(c + (255 - c) * t);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(mix);
+  return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+}
+
+const CONCEPTS = [
+  {
+    name: 'H1 — The Blockquote (chevron through page)',
+    blurb: 'White page with a bold ">" punched through in tile-blue — negative space, so the speed-chevron IS the markdown glyph. The FedEx move, but for markdown.',
+    svg: (size, bg = BLUE, fg = PAPER) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}">
+      ${tile(bg)}
+      <path d="M162 96 H350 a20 20 0 0 1 20 20 V396 a20 20 0 0 1 -20 20 H162 a20 20 0 0 1 -20 -20 V116 a20 20 0 0 1 20 -20 Z" fill="${fg}"/>
+      <path d="M204 180 L300 256 L204 332" fill="none" stroke="${bg}" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
+  },
+  {
+    name: 'H2 — Slipstream (page in motion)',
+    blurb: 'The page leans forward with tapering speed-trails streaming behind its text lines. Most literal "fast document" of the set.',
+    svg: (size, bg = BLUE, fg = PAPER) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}">
+      ${tile(bg)}
+      <g transform="skewX(-6) translate(30 0)">
+        <path d="M196 96 H364 a20 20 0 0 1 20 20 V396 a20 20 0 0 1 -20 20 H196 a20 20 0 0 1 -20 -20 V116 a20 20 0 0 1 20 -20 Z" fill="${fg}"/>
+      </g>
+      <rect x="66"  y="160" width="112" height="30" rx="15" fill="${fg}"/>
+      <rect x="96"  y="240" width="82"  height="30" rx="15" fill="${fg}"/>
+      <rect x="76"  y="320" width="102" height="30" rx="15" fill="${fg}"/>
+    </svg>`,
+  },
+  {
+    name: 'H3 — Afterimage (the glance itself)',
+    blurb: 'A page moving so fast it leaves flat echoes. Layered blues give it the modern dev-tool depth without gradients.',
+    svg: (size, bg = BLUE, fg = PAPER) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}">
+      ${tile(bg)}
+      <rect x="106" y="126" width="190" height="260" rx="20" fill="${tint(bg, 0.28)}"/>
+      <rect x="146" y="121" width="190" height="270" rx="20" fill="${tint(bg, 0.55)}"/>
+      <rect x="192" y="116" width="196" height="280" rx="20" fill="${fg}"/>
+    </svg>`,
+  },
+  {
+    name: 'H4 — The Slit (glimpse of text)',
+    blurb: 'An opening blind/eye mid-blink, with lines of text visible through the gap. The name "glance" told as a single shape — no literal eye, no literal page.',
+    svg: (size, bg = BLUE, fg = PAPER) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}">
+      ${tile(bg)}
+      <rect x="86" y="196" width="340" height="120" rx="60" fill="${fg}"/>
+      <rect x="146" y="228" width="160" height="24" rx="12" fill="${bg}"/>
+      <rect x="146" y="262" width="104" height="24" rx="12" fill="${bg}"/>
+    </svg>`,
+  },
+];
+
+const SIZES = [256, 96, 48, 32, 16];
+const PALETTE = ['#0366d6', '#7c3aed', '#ec4899', '#ef4444', '#f97316', '#22c55e', '#14b8a6', '#6366f1'];
+
+const lab = document.getElementById('lab');
+for (const c of CONCEPTS) {
+  const cells = SIZES.map((s) => `<div class="cell">${c.svg(s)}<div class="label">${s}px</div></div>`).join('');
+  const darkCells = [96, 32, 16].map((s) => `<div class="cell">${c.svg(s)}<div class="label">${s}px</div></div>`).join('');
+  const favicons = PALETTE.map((p) => c.svg(18, p)).join(' ');
+  lab.insertAdjacentHTML('beforeend', `
+    <div class="concept">
+      <h2>${c.name}</h2>
+      <p>${c.blurb}</p>
+      <div class="row">${cells}</div>
+      <div class="darkstrip">${darkCells}
+        <div class="cell" style="margin-left:auto">
+          <div class="taskbar">${c.svg(24)}${c.svg(24)}</div>
+          <div class="label" style="color:#6c737f">taskbar</div>
+        </div>
+      </div>
+      <div class="tabbar"><span class="tab">${c.svg(16)} README.md — glance</span></div>
+      <div style="margin-top:12px"><span class="label" style="font-size:10px;color:#98a2b3">favicon gimmick preview:</span> ${favicons}</div>
+    </div>`);
+}
+
+document.getElementById('verdict').innerHTML = `
+  <strong>My honest read:</strong> <b>H1</b> has the most idea-density — the chevron is simultaneously
+  markdown syntax, the speed glyph, and a negative-space punch-through; it stays crisp at 16px and the
+  favicon strip looks great. <b>H4</b> is the most <i>ownable silhouette</i> (nobody has a "slit" mark)
+  and tells the name itself. <b>H2</b> is charming but busiest at small sizes; <b>H3</b> is handsome but
+  closest to generic "layers/copies" iconography. I'd put money on <b>H1</b>, with <b>H4</b> the bold pick.`;
+</script>
+</body>
+</html>
