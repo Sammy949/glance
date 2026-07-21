@@ -37,13 +37,19 @@ jobs:
         with:
           workspaces: src-tauri
 
-      # beforeBuildCommand (node build-web.mjs) copies the web app into
-      # src-tauri/frontend; icons are committed, so no extra prep needed.
+      # No package.json in this repo, so install the Tauri CLI explicitly and
+      # point tauri-action at it instead of relying on its auto-detection.
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli@^2
+
+      # beforeBuildCommand (node src-tauri/build-web.mjs) copies the web app
+      # into src-tauri/frontend; icons are committed, so no extra prep needed.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: .
+          tauriScript: tauri
           tagName: ${{ github.ref_name }}
           releaseName: 'glance ${{ github.ref_name }}'
           releaseBody: 'Fast, fluid markdown viewer & quick editor. See assets below for your platform.'
