@@ -6,7 +6,6 @@ import { pickFile, saveFile, fromDrop, fromHandle } from './files.js';
 import { ICONS } from './icons.js';
 import { isTauri, initNativeLaunch, watchFile } from './platform.js';
 import * as find from './find.js';
-import { randomizeFavicon } from './favicon.js';
 import * as folder from './folder.js';
 
 const els = {
@@ -64,7 +63,6 @@ const rendererReady = createRenderer().then((r) => (renderer = r));
 
 state.theme = initTheme();
 state.readingWidth = store.get('glance.readingWidth', false);
-randomizeFavicon();
 
 /* ---------------- rendering ---------------- */
 
