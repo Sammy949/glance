@@ -26,7 +26,14 @@ body.theme-dark {
   --sidebar-bg: #181818;
 }
 
-:root { --sidebar-w: 264px; }
+/* The Onee logo navy IS the brand blue — one exact value across both light and dark,
+ * per Samuel's direction: the logo blue is the blue everywhere, not a per-theme shade. */
+:root {
+  --sidebar-w: 264px;
+  --brand: #004883;                     /* solid fills (white text sits on it) */
+  --accent: #004883;                    /* text, links, outlines, active states */
+  --accent-tint: rgba(0, 72, 131, .15); /* subtle wash behind active/drag states */
+}
 @media (max-width: 720px) { :root { --sidebar-w: 216px; } }
 
 html, body { min-height: 100%; }
@@ -90,6 +97,10 @@ body.mode-edit #content { height: 100vh; overflow: auto; }
   color: var(--ui-fg); pointer-events: none;
 }
 #empty .card { pointer-events: auto; }
+#empty-mark {
+  display: block; width: 78px; height: 78px; margin: 0 auto 16px;
+  animation: onee-drift 5s ease-in-out infinite;
+}
 #empty h1 { font-size: 34px; font-weight: 700; margin: 0; letter-spacing: -.5px; border: 0; padding: 0; }
 #empty p { color: var(--ui-muted); margin: 6px 0 0; font-size: 14px; }
 #empty .actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
@@ -100,7 +111,7 @@ body.mode-edit #content { height: 100vh; overflow: auto; }
   transition: filter .12s ease, background .12s ease;
 }
 #empty button svg { width: 18px; height: 18px; }
-#empty .primary { background: #0366d6; color: #fff; }
+#empty .primary { background: var(--brand); color: #fff; }
 #empty .primary:hover { filter: brightness(1.08); }
 #empty .ghost { background: transparent; color: var(--ui-fg); border: 1px solid var(--ui-border); }
 #empty .ghost:hover { background: rgba(128, 128, 128, .12); }
@@ -113,10 +124,10 @@ body.mode-edit #content { height: 100vh; overflow: auto; }
 #drop-hint {
   position: fixed; inset: 0; z-index: 900; display: none;
   align-items: center; justify-content: center;
-  background: rgba(3, 102, 214, .12);
-  outline: 3px dashed #0366d6; outline-offset: -16px;
+  background: var(--accent-tint);
+  outline: 3px dashed var(--accent); outline-offset: -16px;
   font: 600 20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #0366d6;
+  color: var(--accent);
 }
 body.dragging #drop-hint { display: flex; }
 
@@ -205,9 +216,17 @@ body { transition: background-color .25s ease, color .25s ease; }
 }
 #findbar:not([hidden]) { animation: glance-pop .14s ease; }
 
+/* Onee idle drift on the empty state — a quiet heartbeat, transform-only so the
+ * mark is always visible; never a hover boop. Stilled under reduced-motion. */
+@keyframes onee-drift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   #content.enter, #empty, #findbar:not([hidden]) { animation: none; }
+  #empty-mark { animation: none; }
   body, #editor { transition: none; }
 }
 
@@ -249,7 +268,7 @@ body.has-sidebar #empty { margin-left: var(--sidebar-w); }
 #file-tree button:hover { background: rgba(128, 128, 128, .14); }
 #file-tree button svg { width: 15px; height: 15px; flex: none; opacity: .7; }
 #file-tree span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#file-tree .tree-file.active { background: rgba(3, 102, 214, .16); color: #0366d6; font-weight: 600; }
+#file-tree .tree-file.active { background: var(--accent-tint); color: var(--accent); font-weight: 600; }
 #file-tree .tree-file.active svg { opacity: 1; }
 #file-tree .tree-dir .chev { display: inline-flex; transition: transform .12s ease; opacity: .5; }
 #file-tree li.open > .tree-dir .chev { transform: rotate(90deg); }
