@@ -2,7 +2,7 @@
 
 > Paste this file into a ChatGPT/Claude session to bring it fully up to speed on
 > the project. It covers what glance is, every decision made and why, the full
-> architecture, and current status. Last updated: 2026-07-20.
+> architecture, and current status. Last updated: 2026-08-20.
 
 ## What glance is
 
@@ -78,10 +78,9 @@ glance/
 │   ├── folder.js              # folder mode: tree walk, IndexedDB handle persistence, path resolution
 │   ├── find.js                # in-doc find via CSS Custom Highlight API (no DOM mutation)
 │   ├── icons.js               # Lucide SVG strings for toggling buttons
-│   ├── favicon.js             # random palette color per load (SVG data URI)
 │   └── platform.js            # Tauri bridge (withGlobalTauri; no npm dep)
-├── icons/                     # PWA icons + favicon (generated)
-├── scripts/generate-icons.mjs # zero-dep PNG/ICO/ICNS encoder (supersampled canvas math)
+├── icons/                     # icon.svg = Onee master mark (single source); PWA icons + favicon (generated from it)
+├── scripts/generate-icons.mjs # zero-dep SVG→raster: flattens icon.svg's paths, scanline-fills, emits PNG/ICO/ICNS
 ├── sample/                    # test vault: nested md, relative image, ../ links
 ├── src-tauri/                 # Tauri v2 shell
 │   ├── src/lib.rs             # get_launch_file cmd, watch_file cmd (notify crate), single-instance
@@ -103,7 +102,12 @@ blocked by default with per-doc load button; in-doc find (`Ctrl+F`,
 Enter/Shift+Enter step, Esc close, CSS Custom Highlight API); scroll position
 remembered per file (localStorage, keyed by path||name); smooth-scroll +
 subtle enter/theme animations (all disabled under `prefers-reduced-motion`);
-random favicon color per reload.
+Onee mascot on the empty state; favicon is the Onee mark (static navy, no longer
+randomized). The brand blue is the Onee logo navy (`#004883`) — one exact value
+everywhere, both themes, via `--brand`/`--accent`/`--accent-tint` in `:root`
+(Samuel's call: the logo blue is the blue everywhere, not a per-theme shade). The
+markdown link color follows `--accent` (the one deliberate change to the
+otherwise-verbatim PowerToys theme).
 
 **Editor:** `Ctrl+E` toggles side-by-side textarea + live preview (120ms
 debounce); `Ctrl+S` saves back via FS Access handle or Save-As; dirty flag in
