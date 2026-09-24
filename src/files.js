@@ -42,9 +42,12 @@ export async function fromDrop(dataTransfer) {
   const docs = [];
   const items = [...(dataTransfer.items || [])];
   if (items.length && items.every((item) => item.getAsFileSystemHandle)) {
-    for (const item of items) {
+    // Request every handle before the drop event's user activation expires.
+    const handles = await Promise.all(items.map((item) =>
+      item.getAsFileSystemHandle().catch(() => null)
+    ));
+    for (const handle of handles) {
       try {
-        const handle = await item.getAsFileSystemHandle();
         if (handle?.kind === 'file') docs.push(await handleToDoc(handle));
       } catch { /* use the plain-file fallback for unreadable items */ }
     }

@@ -110,7 +110,7 @@ fn watch_file(
     app: tauri::AppHandle,
     state: tauri::State<WatchState>,
     path: String,
-) -> Result<(), String> {
+) -> Result<Option<OpenedFile>, String> {
     let target = PathBuf::from(&path);
     let target = std::fs::canonicalize(target).map_err(|e| e.to_string())?;
     if !app.state::<FileAccess>().0.lock().unwrap().contains(&target) {
@@ -140,7 +140,7 @@ fn watch_file(
         .watch(&dir, RecursiveMode::NonRecursive)
         .map_err(|e| e.to_string())?;
     *state.0.lock().unwrap() = Some(watcher);
-    Ok(())
+    Ok(read_opened(&target))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -350,7 +350,12 @@ function stopWatch() {
 
 function startWatch(doc) {
   stopWatch();
-  if (isTauri() && doc.path) { watchFile(doc.path); return; }   // native watcher
+  if (isTauri() && doc.path) {
+    watchFile(doc.path).then((file) => {
+      if (file && activeTab === doc) externalUpdate(file.text);
+    });
+    return;
+  }
   if (doc.handle && doc.handle.getFile) {                        // web: poll the handle
     doc.handle.getFile().then(async (f) => {
       if (activeTab !== doc) return;
@@ -545,10 +550,12 @@ function restoreScroll() {
 
 addEventListener('scroll', () => {
   if (state.mode !== 'read' || !state.key || els.workspace.hidden) return;
+  const key = state.key;
+  const y = window.scrollY;
+  if (activeTab) activeTab.scrollY = y;
   clearTimeout(scrollTimer);
   scrollTimer = setTimeout(() => {
-    if (activeTab) activeTab.scrollY = window.scrollY;
-    scrollStore[state.key] = window.scrollY;
+    scrollStore[key] = y;
     store.set('glance.scroll', scrollStore);
   }, 200);
 }, { passive: true });

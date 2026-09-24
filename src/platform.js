@@ -54,6 +54,6 @@ export async function initNativeLaunch(onFile, onChange) {
 /** Ask the native side to watch `path` and emit file-changed on modification. */
 export async function watchFile(path) {
   if (!isTauri() || !path) return;
-  try { await window.__TAURI__.core.invoke('watch_file', { path }); }
+  try { return await window.__TAURI__.core.invoke('watch_file', { path }); }
   catch (e) { console.warn('[glance] watch_file failed:', e); }
 }
