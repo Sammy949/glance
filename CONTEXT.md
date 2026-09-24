@@ -166,18 +166,22 @@ paths. `withGlobalTauri` keeps the frontend free of npm Tauri dependencies.
 ## Release process
 
 ```bash
+node scripts/check-release.mjs v0.x.y
 git tag v0.x.y && git push origin v0.x.y
 ```
-→ `.github/workflows/release.yml` builds on windows-latest / macos-latest /
-ubuntu-22.04, produces `.msi`/`.exe`, `.dmg`, `.deb`/`.AppImage`, and attaches
-them to a **draft** GitHub Release for manual publish.
+Update both Tauri and Cargo versions before merging the release commit to
+`main`. The tag workflow requires matching versions and a commit on `main`,
+then builds on windows-latest / macos-latest / ubuntu-22.04. It produces
+`.msi`/`.exe`, `.dmg`, `.deb`/`.AppImage` and attaches them to a **draft** GitHub
+Release for manual review and publish.
 
 ## Current status & roadmap
 
 - Web/PWA: fully working, all features above live on `main`.
-- v0.2.0 is tagged; this branch adds tabs, native Open/Save, and reader polish.
-- Rust changes still need CI compilation and a desktop smoke test; there is no
-  Rust toolchain in this WSL environment.
+- v0.2.0 is tagged; tabs, native Open/Save, and reader polish are merged into
+  `main`. This branch prepares v0.3.0.
+- Rust changes passed CI compilation; a real desktop dialog smoke test still
+  needs a desktop runtime. There is no Rust toolchain in this WSL environment.
 - **Later:** native folder browsing under Tauri (FS Access API may be limited
   in WebView2); folder-wide native watch; session restoration; Mermaid (lazy).
 
