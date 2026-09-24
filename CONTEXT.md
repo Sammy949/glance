@@ -2,7 +2,7 @@
 
 > Paste this file into a ChatGPT/Claude session to bring it fully up to speed on
 > the project. It covers what glance is, every decision made and why, the full
-> architecture, and current status. Last updated: 2026-08-20.
+> architecture, and current status. Last updated: 2026-09-24.
 
 ## What glance is
 
@@ -24,13 +24,15 @@ instant startup and zero friction. Feature creep is actively resisted.
 ## Key decisions (and why)
 
 - **Zero-build vanilla ES modules.** No bundler, no framework, no npm at
-  runtime. Deps load from `esm.sh` CDN as ES modules. Rationale: speed,
-  simplicity, and the artifact stays inspectable.
-- **Chromium-only by choice.** Uses the File System Access API (open/save-back,
-  folder mode). Samuel accepted this tradeoff explicitly.
+  runtime. Deps are vendored in `vendor/`. Rationale: speed, offline use,
+  simplicity, and an inspectable artifact.
+- **Chromium-only for full browser file access by choice.** Uses the File System
+  Access API (open/save-back, folder mode). Other browsers can read files and
+  download a copy. Tauri uses native Open/Save, while folder mode still depends
+  on WebView support for the directory picker.
 - **Render pipeline mirrors PowerToys `MarkdownHelper.cs` exactly** (see
-  mapping below). The light/dark **theme CSS is lifted verbatim** from that
-  file — MIT, attributed in `LICENSE` third-party notices.
+  mapping below). The light/dark **theme CSS derives from** that file — MIT,
+  attributed in `LICENSE` third-party notices. Link color is adapted for glance.
 - **Editing is deliberately dumb** (raw textarea + live preview). Samuel has a
   separate notepad project ("Ren"); glance must not grow into a second Ren.
   Rich authoring is out of scope.
@@ -47,7 +49,7 @@ instant startup and zero friction. Feature creep is actively resisted.
 
 ## Markdig → markdown-it mapping (the core port)
 
-| PowerToys (Markdig)              | glance (markdown-it@14 via esm.sh)          |
+| PowerToys (Markdig)              | glance (vendored markdown-it@14)            |
 |----------------------------------|---------------------------------------------|
 | `UseAdvancedExtensions`          | GFM built-ins + `markdown-it-footnote`, `-deflist`, `-task-lists` |
 | `UseEmojiAndSmiley`              | `markdown-it-emoji`                          |
@@ -60,7 +62,7 @@ instant startup and zero friction. Feature creep is actively resisted.
 | (none)                           | `markdown-it-anchor` — slugged heading ids + hover `#` permalink |
 | Sanitization                     | `DOMPurify`                                  |
 
-Every CDN plugin loads in a try/catch — one failing never breaks rendering.
+Every optional plugin loads in a try/catch — one failing never breaks rendering.
 
 ## File layout
 
@@ -73,7 +75,7 @@ glance/
 ├── src/
 │   ├── main.js                # orchestrator: state, doc lifecycle, all wiring
 │   ├── pipeline.js            # markdown-it + plugins + hljs + DOMPurify
-│   ├── theme.js               # verbatim PowerToys light/dark CSS, injected into #pt-theme
+│   ├── theme.js               # PowerToys light/dark CSS with link-color adaptation
 │   ├── files.js               # FS Access open/save + drag-drop + fallbacks
 │   ├── folder.js              # folder mode: tree walk, IndexedDB handle persistence, path resolution
 │   ├── find.js                # in-doc find via CSS Custom Highlight API (no DOM mutation)
@@ -83,7 +85,7 @@ glance/
 ├── scripts/generate-icons.mjs # zero-dep SVG→raster: flattens icon.svg's paths, scanline-fills, emits PNG/ICO/ICNS
 ├── sample/                    # test vault: nested md, relative image, ../ links
 ├── src-tauri/                 # Tauri v2 shell
-│   ├── src/lib.rs             # get_launch_file cmd, watch_file cmd (notify crate), single-instance
+│   ├── src/lib.rs             # launch/open/save/watch commands, single-instance
 │   ├── src/main.rs            # thin entry
 │   ├── tauri.conf.json        # window, bundle, .md fileAssociations, before-hooks
 │   ├── build-web.mjs          # copies web app -> src-tauri/frontend (frontendDist)
@@ -103,15 +105,21 @@ Enter/Shift+Enter step, Esc close, CSS Custom Highlight API); scroll position
 remembered per file (localStorage, keyed by path||name); smooth-scroll +
 subtle enter/theme animations (all disabled under `prefers-reduced-motion`);
 Onee mascot on the empty state; favicon is the Onee mark (static navy, no longer
-randomized). The brand blue is the Onee logo navy (`#004883`) — one exact value
-everywhere, both themes, via `--brand`/`--accent`/`--accent-tint` in `:root`
-(Samuel's call: the logo blue is the blue everywhere, not a per-theme shade). The
-markdown link color follows `--accent` (the one deliberate change to the
-otherwise-verbatim PowerToys theme).
+randomized). The brand blue is the Onee logo navy (`#004883`) via
+`--brand`/`--accent`/`--accent-tint` in `:root`. Dark reading links use a lighter
+blue for legibility against the dark page; the logo navy itself is unchanged.
 
 **Editor:** `Ctrl+E` toggles side-by-side textarea + live preview (120ms
-debounce); `Ctrl+S` saves back via FS Access handle or Save-As; dirty flag in
-title; beforeunload guard; external-change toast protects unsaved edits.
+debounce), or full-height editing on narrow windows. `Ctrl+S` saves back via a
+browser handle or native path; dirty flags appear in tabs and the title;
+beforeunload and tab-close guards protect unsaved edits. A download fallback
+keeps the tab dirty because it cannot confirm an in-place save.
+
+**Tabs:** each open document keeps its own text, dirty state, mode, scroll,
+relative folder context, and remote-image choice. Opening an existing file
+focuses its tab. Multiple dropped files and PWA/native launch files open in tabs.
+Closing a dirty tab asks before discarding edits. On narrow windows, the editor
+uses the full screen and the Edit/Preview button switches views.
 
 **Live-reload:** under Tauri, a Rust `notify` watcher on the file's parent dir
 emits `file-changed` (survives editors' atomic write-then-rename); on web,
@@ -126,13 +134,13 @@ permission still granted (re-grant needs a user gesture). Object URLs revoked
 on each re-render.
 
 **PWA:** installable; offline via SW (same-origin = network-first with cache
-fallback; CDN = stale-while-revalidate); `.md` file handler via launchQueue;
-SW disabled under Tauri.
+fallback); `.md` file handler via launchQueue; SW disabled under Tauri.
 
 **Desktop (Tauri v2):** `.md`/`.markdown`/`.mdown`/`.mkd` file associations;
-launched file read in Rust (`get_launch_file`) and handed to the frontend;
-second launch forwards args via single-instance plugin and focuses the window;
-`withGlobalTauri` so the frontend needs no npm Tauri dep.
+launched files read in Rust (`get_launch_files`) and handed to the frontend;
+second launch forwards args via single-instance plugin and focuses the window.
+Native Open and Save use the dialog plugin and a Rust-side allowlist of opened
+paths. `withGlobalTauri` keeps the frontend free of npm Tauri dependencies.
 
 **Keyboard:** Ctrl+O open, Ctrl+S save, Ctrl+E edit toggle, Ctrl+F find.
 
@@ -167,15 +175,11 @@ them to a **draft** GitHub Release for manual publish.
 ## Current status & roadmap
 
 - Web/PWA: fully working, all features above live on `main`.
-- v0.1.0 tagged; first CI run failed (bug #4 above), fixes pushed, tag
-  re-pointed, second run in progress as of last update.
-- Rust code (watcher, launch) is **written but not yet compiled/tested** —
-  there's no Rust toolchain in Samuel's WSL; verification happens on Windows
-  (`cargo tauri dev`) or via CI.
-- **Later:** vendor CDN deps for fully-offline native app; native folder
-  open under Tauri (FS Access API may be limited in WebView2); folder-wide
-  native watch; scroll memory keyed by full path; Mermaid (lazy);
-  tabs/export/tray quick-peek — all explicitly deferred.
+- v0.2.0 is tagged; this branch adds tabs, native Open/Save, and reader polish.
+- Rust changes still need CI compilation and a desktop smoke test; there is no
+  Rust toolchain in this WSL environment.
+- **Later:** native folder browsing under Tauri (FS Access API may be limited
+  in WebView2); folder-wide native watch; session restoration; Mermaid (lazy).
 
 ## How to work with Samuel
 

@@ -4,7 +4,7 @@ import { createRenderer } from './pipeline.js';
 import { initTheme, toggleTheme } from './theme.js';
 import { pickFile, saveFile, fromDrop, fromHandle } from './files.js';
 import { ICONS } from './icons.js';
-import { isTauri, initNativeLaunch, watchFile } from './platform.js';
+import { isTauri, initNativeLaunch, watchFile, pickNativeDocument, saveNativeDocument } from './platform.js';
 import * as find from './find.js';
 import * as folder from './folder.js';
 
@@ -36,6 +36,9 @@ const els = {
   folderName: document.getElementById('folder-name'),
   fileTree: document.getElementById('file-tree'),
   btnFolderClose: document.getElementById('btn-folder-close'),
+  documentBar: document.getElementById('document-bar'),
+  tabs: document.getElementById('tabs'),
+  documentStatus: document.getElementById('document-status'),
 };
 
 const state = {
@@ -49,8 +52,87 @@ const state = {
   theme: 'light',
   readingWidth: false,
   root: null,          // folder-mode root directory handle
+  docRoot: null,       // directory associated with this document
   relDir: null,        // current file's dir segments from root (null = not in folder)
+  path: null,
 };
+
+const tabs = [];
+let activeTab = null;
+let nextTabId = 1;
+
+function rememberActive() {
+  if (!activeTab) return;
+  for (const key of ['name', 'key', 'text', 'handle', 'mode', 'imagesAllowed', 'dirty', 'docRoot', 'relDir', 'path']) {
+    activeTab[key] = state[key];
+  }
+  activeTab.scrollY = window.scrollY;
+  activeTab.previewY = els.content.scrollTop;
+  activeTab.editorY = els.editor.scrollTop;
+}
+
+function restoreActive(tab) {
+  for (const key of ['name', 'key', 'text', 'handle', 'mode', 'imagesAllowed', 'dirty', 'docRoot', 'relDir', 'path']) {
+    state[key] = tab[key];
+  }
+}
+
+async function matchingTab(doc) {
+  if (doc.path) return tabs.find((tab) => tab.path === doc.path);
+  if (doc.handle) {
+    for (const tab of tabs) {
+      if (!tab.handle?.isSameEntry) continue;
+      try { if (await tab.handle.isSameEntry(doc.handle)) return tab; } catch {}
+    }
+    return null;
+  }
+  return doc.key ? tabs.find((tab) => tab.key === doc.key) : null;
+}
+
+function renderTabs() {
+  els.documentBar.hidden = tabs.length === 0;
+  document.body.classList.toggle('has-tabs', tabs.length > 0);
+  els.tabs.replaceChildren();
+  for (const tab of tabs) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tab';
+    if (tab === activeTab) wrapper.classList.add('active');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tab-select';
+    button.setAttribute('role', 'tab');
+    button.id = `tab-${tab.id}`;
+    button.setAttribute('aria-controls', 'workspace');
+    button.setAttribute('aria-selected', String(tab === activeTab));
+    button.tabIndex = tab === activeTab ? 0 : -1;
+    button.title = tab.path || tab.key || tab.name;
+    button.textContent = tab.name;
+    button.onclick = () => activateTab(tab);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'tab-close';
+    close.setAttribute('aria-label', `Close ${tab.name}`);
+    close.textContent = '×';
+    close.onclick = () => closeTab(tab);
+    wrapper.append(button, close);
+    els.tabs.append(wrapper);
+  }
+  const selected = els.tabs.querySelector('.active .tab-select');
+  if (selected) els.workspace.setAttribute('aria-labelledby', selected.id);
+  selected?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  els.documentStatus.textContent = activeTab ? (state.dirty ? 'Unsaved changes' : 'Saved') : '';
+}
+
+els.tabs.addEventListener('keydown', (event) => {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Delete'].includes(event.key)) return;
+  const current = tabs.indexOf(activeTab);
+  if (current < 0) return;
+  event.preventDefault();
+  if (event.key === 'Delete') { closeTab(activeTab); return; }
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
+    : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+  activateTab(tabs[next]).then(() => els.tabs.querySelector('.active .tab-select')?.focus());
+});
 
 /* tiny localStorage JSON helpers */
 const store = {
@@ -62,22 +144,40 @@ let renderer = null;
 const rendererReady = createRenderer().then((r) => (renderer = r));
 
 state.theme = initTheme();
-state.readingWidth = store.get('glance.readingWidth', false);
+state.readingWidth = store.get('glance.readingWidth', true);
 
 /* ---------------- rendering ---------------- */
 
+let renderVersion = 0;
 async function renderPreview() {
+  const version = ++renderVersion;
   await rendererReady;
+  if (version !== renderVersion) return;
+  const tab = activeTab;
+  if (!tab) return;
   revokeObjectUrls();
-  els.content.innerHTML = renderer.render(state.text);
+  const fragment = document.createElement('template');
+  fragment.innerHTML = renderer.render(state.text);
+  let foundRemote = false;
+  fragment.content.querySelectorAll('img').forEach((img) => {
+    img.removeAttribute('srcset');
+    const src = img.getAttribute('src') || '';
+    if (/^https?:/i.test(src)) {
+      img.dataset.remote = src;
+      if (!state.imagesAllowed) img.removeAttribute('src');
+      foundRemote = true;
+    }
+  });
+  els.content.replaceChildren(fragment.content);
   els.content.querySelectorAll('a[href^="http"]').forEach((a) => {
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
   });
   addCopyButtons();
-  markRemoteImages();
-  await resolveRelativeAssets();
-  find.setContainer(els.content);
+  els.btnImages.hidden = !foundRemote;
+  updateImagesButton();
+  await resolveRelativeAssets(tab, version);
+  if (version === renderVersion && tab === activeTab) find.setContainer(els.content);
 }
 
 /* ---------------- folder mode: relative assets ---------------- */
@@ -90,8 +190,8 @@ function revokeObjectUrls() {
 
 /* Normalize a relative path against the current file's dir → segments from root,
  * or null if it escapes the root or is empty. */
-function resolveRel(relPath) {
-  const base = (state.relDir || []).slice();
+function resolveRel(relPath, baseDir = state.relDir) {
+  const base = (baseDir || []).slice();
   for (const p of relPath.split('/')) {
     if (p === '' || p === '.') continue;
     if (p === '..') { if (!base.length) return null; base.pop(); }
@@ -100,18 +200,25 @@ function resolveRel(relPath) {
   return base.length ? base : null;
 }
 
+function decodePath(value) {
+  try { return decodeURIComponent(value); } catch { return null; }
+}
+
 /* In folder mode, swap relative <img> srcs for blob URLs read from disk. */
-async function resolveRelativeAssets() {
-  if (!state.root || state.relDir == null) return;
+async function resolveRelativeAssets(tab, version) {
+  if (!tab.docRoot || tab.relDir == null) return;
   for (const img of els.content.querySelectorAll('img[src]')) {
     const raw = img.getAttribute('src') || '';
     if (!raw || /^(https?:|data:|blob:)/i.test(raw)) continue;
-    const segs = resolveRel(decodeURIComponent(raw.split('#')[0].split('?')[0]));
+    const decoded = decodePath(raw.split('#')[0].split('?')[0]);
+    const segs = decoded && resolveRel(decoded, tab.relDir);
     if (!segs) continue;
-    const res = await folder.resolveSegments(state.root, segs);
+    const res = await folder.resolveSegments(tab.docRoot, segs);
+    if (version !== renderVersion) return;
     if (res) {
       try {
         const url = URL.createObjectURL(await res.fileHandle.getFile());
+        if (version !== renderVersion) { URL.revokeObjectURL(url); return; }
         objectUrls.push(url);
         img.src = url;
       } catch { /* unreadable — leave as-is */ }
@@ -141,21 +248,6 @@ function addCopyButtons() {
   });
 }
 
-/* Remote images are blocked by default (Peek's privacy default). */
-function markRemoteImages() {
-  let found = false;
-  els.content.querySelectorAll('img[src]').forEach((img) => {
-    const src = img.getAttribute('src') || '';
-    if (/^https?:/i.test(src)) {
-      img.dataset.remote = src;
-      if (!state.imagesAllowed) img.removeAttribute('src');
-      found = true;
-    }
-  });
-  els.btnImages.hidden = !found;
-  updateImagesButton();
-}
-
 function updateImages() {
   els.content.querySelectorAll('img[data-remote]').forEach((img) => {
     if (state.imagesAllowed) img.src = img.dataset.remote;
@@ -174,27 +266,77 @@ function updateImagesButton() {
 /* ---------------- document lifecycle ---------------- */
 
 async function loadDoc(doc) {
+  const existing = await matchingTab(doc);
+  if (existing) { await activateTab(existing); return; }
+  const tab = {
+    id: nextTabId++, name: doc.name || 'untitled.md',
+    key: doc.path || doc.key || doc.name || null,
+    path: doc.path || null, text: doc.text || '', handle: doc.handle || null,
+    mode: doc.mode || 'read', imagesAllowed: false, dirty: false,
+    docRoot: doc.docRoot || null, relDir: doc.relDir ?? null,
+    scrollY: doc.key ? scrollStore[doc.key] || 0 : 0, previewY: 0, editorY: 0,
+  };
+  tabs.push(tab);
+  await activateTab(tab);
+}
+
+async function activateTab(tab) {
+  if (tab === activeTab) return;
+  rememberActive();
+  clearTimeout(renderTimer);
   closeFind();
-  state.name = doc.name || 'untitled.md';
-  state.key = doc.path || doc.name || 'untitled.md';
-  state.text = doc.text || '';
-  state.handle = doc.handle || null;
-  state.relDir = doc.relDir ?? null;
-  state.dirty = false;
+  activeTab = tab;
+  restoreActive(tab);
   els.editor.value = state.text;
   els.empty.hidden = true;
   els.workspace.hidden = false;
   els.btnSave.hidden = false;
   els.btnEdit.hidden = false;
   els.btnWidth.hidden = false;
+  document.body.classList.toggle('mode-edit', state.mode === 'edit');
+  updateModeButton();
   updateTitle();
+  renderTabs();
   await renderPreview();
+  if (tab !== activeTab) return;
   // one-shot enter animation (read loads only; live edits call renderPreview directly)
   els.content.classList.remove('enter');
   void els.content.offsetWidth;
   els.content.classList.add('enter');
-  restoreScroll();
-  startWatch(doc);
+  window.scrollTo({ top: tab.scrollY, left: 0, behavior: 'instant' });
+  els.content.scrollTop = tab.previewY;
+  els.editor.scrollTop = tab.editorY;
+  startWatch(tab);
+  syncTreeActive();
+}
+
+async function closeTab(tab) {
+  if (tab === activeTab) rememberActive();
+  if (tab.dirty && !window.confirm(`Discard unsaved changes to ${tab.name}?`)) return;
+  const index = tabs.indexOf(tab);
+  if (index < 0) return;
+  tabs.splice(index, 1);
+  if (tab !== activeTab) { renderTabs(); return; }
+  activeTab = null;
+  stopWatch();
+  revokeObjectUrls();
+  if (tabs.length) {
+    await activateTab(tabs[Math.min(index, tabs.length - 1)]);
+    els.tabs.querySelector('.active .tab-select')?.focus();
+  } else {
+    els.workspace.hidden = true;
+    els.empty.hidden = false;
+    els.btnSave.hidden = true;
+    els.btnEdit.hidden = true;
+    els.btnWidth.hidden = true;
+    els.btnImages.hidden = true;
+    document.body.classList.remove('mode-edit');
+    state.name = null;
+    state.key = null;
+    updateTitle();
+    renderTabs();
+    syncTreeActive();
+  }
 }
 
 /* ---------------- live-reload (external edits) ---------------- */
@@ -208,9 +350,18 @@ function stopWatch() {
 
 function startWatch(doc) {
   stopWatch();
-  if (isTauri() && doc.path) { watchFile(doc.path); return; }   // native watcher
+  if (isTauri() && doc.path) {
+    watchFile(doc.path).then((file) => {
+      if (file && activeTab === doc) externalUpdate(file.text);
+    });
+    return;
+  }
   if (doc.handle && doc.handle.getFile) {                        // web: poll the handle
-    doc.handle.getFile().then((f) => { lastMod = f.lastModified; }).catch(() => {});
+    doc.handle.getFile().then(async (f) => {
+      if (activeTab !== doc) return;
+      lastMod = f.lastModified;
+      externalUpdate(await f.text());
+    }).catch(() => {});
     pollTimer = setInterval(pollHandle, 1500);
   }
 }
@@ -230,6 +381,7 @@ function externalUpdate(text) {
   if (state.dirty) { flash('File changed on disk — unsaved edits kept'); return; }
   const y = window.scrollY;
   state.text = text;
+  if (activeTab) activeTab.text = text;
   els.editor.value = text;
   renderPreview().then(() => window.scrollTo({ top: y, left: 0, behavior: 'instant' }));
 }
@@ -256,8 +408,9 @@ async function useFolder(dir) {
   els.sidebar.hidden = false;
   els.btnSidebar.hidden = false;
 
+  syncTreeActive();
   const firstBtn = els.fileTree.querySelector('.tree-file');
-  if (firstBtn) selectTreeFile(firstBtn._node, firstBtn);
+  if (!activeTab && firstBtn) selectTreeFile(firstBtn._node, firstBtn);
 }
 
 function renderTree(root) {
@@ -282,7 +435,12 @@ function buildTreeDom(node) {
       span.textContent = child.name;
       btn.append(span);
       const sub = buildTreeDom(child);
-      btn.addEventListener('click', () => { sub.hidden = !li.classList.toggle('open'); });
+      btn.setAttribute('aria-expanded', 'true');
+      btn.addEventListener('click', () => {
+        const open = li.classList.toggle('open');
+        sub.hidden = !open;
+        btn.setAttribute('aria-expanded', String(open));
+      });
       li.classList.add('open');
       li.append(btn, sub);
     } else {
@@ -294,7 +452,7 @@ function buildTreeDom(node) {
       span.textContent = child.name;
       btn.append(span);
       btn._node = child;
-      btn.addEventListener('click', () => selectTreeFile(child, btn));
+      btn.addEventListener('click', () => selectTreeFile(child));
       li.append(btn);
     }
     ul.append(li);
@@ -302,18 +460,21 @@ function buildTreeDom(node) {
   return ul;
 }
 
-async function selectTreeFile(node, btn) {
+async function selectTreeFile(node) {
   try {
     const file = await node.handle.getFile();
-    await loadDoc({ name: file.name, text: await file.text(), handle: node.handle, relDir: node.parentPath });
-    setMode('read');
-    setActive(btn);
+    await loadDoc({ name: file.name, text: await file.text(), handle: node.handle,
+      docRoot: state.root, relDir: node.parentPath,
+      key: `${state.root.name}/${[...node.parentPath, file.name].join('/')}` });
   } catch (e) { console.warn(e); flash('Could not open file'); }
 }
 
-function setActive(btn) {
+function syncTreeActive() {
   els.fileTree.querySelectorAll('.tree-file.active').forEach((b) => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+  if (!activeTab?.handle) return;
+  for (const btn of els.fileTree.querySelectorAll('.tree-file')) {
+    if (btn._node.handle === activeTab.handle) { btn.classList.add('active'); break; }
+  }
 }
 
 function toggleSidebar() { document.body.classList.toggle('has-sidebar'); }
@@ -323,30 +484,45 @@ function closeFolder() {
   els.sidebar.hidden = true;
   els.btnSidebar.hidden = true;
   state.root = null;
-  state.relDir = null;
   folder.saveHandle('lastDir', null);
 }
 
 function newDoc() {
-  loadDoc({ name: 'untitled.md', text: '', handle: null });
-  setMode('edit');
+  let number = 1;
+  let name = 'untitled.md';
+  while (tabs.some((tab) => tab.name === name && !tab.path)) {
+    number++;
+    name = `untitled-${number}.md`;
+  }
+  loadDoc({ name, text: '', handle: null, mode: 'edit' });
 }
 
 function updateTitle() {
   const flag = state.dirty ? '• ' : '';
   document.title = state.name ? `${flag}${state.name} — glance` : 'glance';
+  if (activeTab) {
+    activeTab.dirty = state.dirty;
+    activeTab.name = state.name;
+    renderTabs();
+  }
 }
 
 /* ---------------- edit mode ---------------- */
 
 function setMode(mode) {
   state.mode = mode;
+  if (activeTab) activeTab.mode = mode;
   document.body.classList.toggle('mode-edit', mode === 'edit');
+  updateModeButton();
+  if (mode === 'edit') { closeFind(); els.editor.focus(); }
+}
+
+function updateModeButton() {
+  const mode = state.mode;
   els.btnEdit.innerHTML = mode === 'edit' ? ICONS.eye : ICONS.pencil;
   const label = mode === 'edit' ? 'Preview (Ctrl+E)' : 'Edit (Ctrl+E)';
   els.btnEdit.title = label;
   els.btnEdit.setAttribute('aria-label', label);
-  if (mode === 'edit') { closeFind(); els.editor.focus(); }
 }
 
 /* ---------------- reading width ---------------- */
@@ -368,15 +544,18 @@ const scrollStore = store.get('glance.scroll', {});
 let scrollTimer = null;
 
 function restoreScroll() {
-  const y = scrollStore[state.key] || 0;
+  const y = activeTab?.scrollY || scrollStore[state.key] || 0;
   window.scrollTo({ top: y, left: 0, behavior: 'instant' });
 }
 
 addEventListener('scroll', () => {
   if (state.mode !== 'read' || !state.key || els.workspace.hidden) return;
+  const key = state.key;
+  const y = window.scrollY;
+  if (activeTab) activeTab.scrollY = y;
   clearTimeout(scrollTimer);
   scrollTimer = setTimeout(() => {
-    scrollStore[state.key] = window.scrollY;
+    scrollStore[key] = y;
     store.set('glance.scroll', scrollStore);
   }, 200);
 }, { passive: true });
@@ -415,6 +594,7 @@ function toggleMode() {
 let renderTimer = null;
 els.editor.addEventListener('input', () => {
   state.text = els.editor.value;
+  if (activeTab) activeTab.text = state.text;
   if (!state.dirty) { state.dirty = true; updateTitle(); }
   clearTimeout(renderTimer);
   renderTimer = setTimeout(renderPreview, 120);
@@ -425,14 +605,34 @@ els.editor.addEventListener('input', () => {
 async function save() {
   if (els.workspace.hidden) return;
   try {
-    const h = await saveFile({ handle: state.handle, text: state.text, name: state.name });
-    if (h) {
-      state.handle = h;
-      if (h.name) state.name = h.name;
+    const savingTab = activeTab;
+    const text = state.text;
+    const result = isTauri()
+      ? await saveNativeDocument({ path: state.path, text, name: state.name })
+      : await saveFile({ handle: state.handle, text, name: state.name });
+    if (isTauri() && !result) return;
+    if (isTauri()) {
+      savingTab.path = result.path;
+      savingTab.key = result.path;
+      savingTab.name = result.name;
+    } else if (result.downloaded) {
+      flash('Downloaded a copy; original unchanged');
+      return;
+    } else if (result.handle) {
+      savingTab.handle = result.handle;
+      if (result.handle.name) savingTab.name = result.handle.name;
     }
-    state.dirty = false;
-    updateTitle();
-    flash('Saved');
+    savingTab.dirty = savingTab.text !== text;
+    if (savingTab === activeTab) {
+      state.path = savingTab.path;
+      state.key = savingTab.key;
+      state.name = savingTab.name;
+      state.handle = savingTab.handle;
+      state.dirty = savingTab.dirty;
+      if (isTauri()) startWatch(savingTab);
+      updateTitle();
+    } else renderTabs();
+    flash(savingTab.dirty ? 'Saved; newer edits remain' : `Saved ${savingTab.name}`);
   } catch (e) {
     if (e && e.name === 'AbortError') return;
     console.error(e);
@@ -453,8 +653,8 @@ function flash(msg) {
 /* ---------------- open helper ---------------- */
 
 async function openFile() {
-  const doc = await pickFile();
-  if (doc) { await loadDoc(doc); setMode('read'); }
+  const doc = isTauri() ? await pickNativeDocument() : await pickFile();
+  if (doc) await loadDoc(doc);
 }
 
 /* ---------------- wiring ---------------- */
@@ -479,20 +679,21 @@ els.btnFolderClose.onclick = closeFolder;
 /* relative .md links inside a folder-mode doc open in-app */
 els.content.addEventListener('click', async (e) => {
   const a = e.target.closest('a');
-  if (!a || !state.root || state.relDir == null) return;
+  if (!a || !state.docRoot || state.relDir == null) return;
   const href = a.getAttribute('href') || '';
   if (!href || /^(https?:|mailto:|#)/i.test(href)) return;
   const path = href.split('#')[0];
   if (!folder.MD_RE.test(path)) return;
   e.preventDefault();
-  const segs = resolveRel(decodeURIComponent(path));
-  const res = segs && await folder.resolveSegments(state.root, segs);
+  const decoded = decodePath(path);
+  const segs = decoded && resolveRel(decoded);
+  const res = segs && await folder.resolveSegments(state.docRoot, segs);
   if (!res) { flash('Linked file not found'); return; }
   try {
     const file = await res.fileHandle.getFile();
-    await loadDoc({ name: file.name, text: await file.text(), handle: res.fileHandle, relDir: segs.slice(0, -1) });
-    setMode('read');
-    setActive(null);
+    await loadDoc({ name: file.name, text: await file.text(), handle: res.fileHandle,
+      docRoot: state.docRoot, relDir: segs.slice(0, -1),
+      key: `${state.docRoot.name}/${segs.join('/')}` });
   } catch { flash('Could not open linked file'); }
 });
 
@@ -514,6 +715,12 @@ addEventListener('keydown', (e) => {
   else if (k === 's') { e.preventDefault(); save(); }
   else if (k === 'e') { e.preventDefault(); toggleMode(); }
   else if (k === 'f' && state.mode === 'read' && !els.workspace.hidden) { e.preventDefault(); openFind(); }
+  else if (k === 'w' && activeTab) { e.preventDefault(); closeTab(activeTab); }
+  else if (k === 'tab' && tabs.length > 1) {
+    e.preventDefault();
+    const index = tabs.indexOf(activeTab);
+    activateTab(tabs[(index + (e.shiftKey ? -1 : 1) + tabs.length) % tabs.length]);
+  }
 });
 
 /* drag & drop */
@@ -522,20 +729,21 @@ addEventListener('dragleave', (e) => { if (e.relatedTarget === null) document.bo
 addEventListener('drop', async (e) => {
   e.preventDefault();
   document.body.classList.remove('dragging');
-  const doc = await fromDrop(e.dataTransfer);
-  if (doc) { await loadDoc(doc); setMode('read'); }
+  const docs = await fromDrop(e.dataTransfer);
+  for (const doc of docs) await loadDoc(doc);
 });
 
 /* warn on unsaved changes */
 addEventListener('beforeunload', (e) => {
-  if (state.dirty) { e.preventDefault(); e.returnValue = ''; }
+  if (tabs.some((tab) => tab.dirty)) { e.preventDefault(); e.returnValue = ''; }
 });
 
 /* PWA file handler: launched by double-clicking a .md once installed */
 if ('launchQueue' in window && 'setConsumer' in window.launchQueue) {
   window.launchQueue.setConsumer(async (params) => {
     if (!params.files || !params.files.length) return;
-    try { await loadDoc(await fromHandle(params.files[0])); setMode('read'); } catch (err) { console.error(err); }
+    try { for (const handle of params.files) await loadDoc(await fromHandle(handle)); }
+    catch (err) { console.error(err); }
   });
 }
 
@@ -550,7 +758,7 @@ if (qFile) {
 
 /* native (Tauri): load launched/associated files + apply live file changes */
 initNativeLaunch(
-  (doc) => { loadDoc(doc); setMode('read'); },
+  (doc) => loadDoc(doc),
   (doc) => { if (doc.path && doc.path === state.key) externalUpdate(doc.text); }
 );
 

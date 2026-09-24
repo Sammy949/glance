@@ -32,21 +32,32 @@ export async function pickFile() {
       const f = input.files[0];
       resolve(f ? { name: f.name, text: await f.text(), handle: null } : null);
     };
+    input.oncancel = () => resolve(null);
     input.click();
   });
 }
 
-/** Build a doc from a drag-and-drop event; grabs a writable handle when possible. */
+/** Build docs from a drop; preserve writable handles when available. */
 export async function fromDrop(dataTransfer) {
-  const item = dataTransfer.items && dataTransfer.items[0];
-  if (item && item.getAsFileSystemHandle) {
-    try {
-      const handle = await item.getAsFileSystemHandle();
-      if (handle && handle.kind === 'file') return await handleToDoc(handle);
-    } catch { /* fall back to plain file below */ }
+  const docs = [];
+  const items = [...(dataTransfer.items || [])];
+  if (items.length && items.every((item) => item.getAsFileSystemHandle)) {
+    // Request every handle before the drop event's user activation expires.
+    const handles = await Promise.all(items.map((item) =>
+      item.getAsFileSystemHandle().catch(() => null)
+    ));
+    for (const handle of handles) {
+      try {
+        if (handle?.kind === 'file') docs.push(await handleToDoc(handle));
+      } catch { /* use the plain-file fallback for unreadable items */ }
+    }
+    if (docs.length === items.length) return docs;
+    docs.length = 0;
   }
-  const f = dataTransfer.files && dataTransfer.files[0];
-  return f ? { name: f.name, text: await f.text(), handle: null } : null;
+  for (const file of dataTransfer.files || []) {
+    docs.push({ name: file.name, text: await file.text(), handle: null });
+  }
+  return docs;
 }
 
 /** Read a doc from a handle delivered by the PWA file handler (launchQueue). */
@@ -58,7 +69,7 @@ export async function fromHandle(handle) {
  * Save text back to disk.
  * - With a handle: writes in place (requesting readwrite permission).
  * - Without: prompts Save As (or downloads if the API is unavailable).
- * Returns the handle written to (or null on download fallback).
+ * Returns {handle, downloaded}; a download is a copy, not an in-place save.
  */
 export async function saveFile({ handle, text, name }) {
   let h = handle;
@@ -71,7 +82,7 @@ export async function saveFile({ handle, text, name }) {
       const a = Object.assign(document.createElement('a'), { href: url, download: name || 'untitled.md' });
       a.click();
       URL.revokeObjectURL(url);
-      return null;
+      return { handle: null, downloaded: true };
     }
   }
   if (h.requestPermission) {
@@ -81,5 +92,5 @@ export async function saveFile({ handle, text, name }) {
   const writable = await h.createWritable();
   await writable.write(text);
   await writable.close();
-  return h;
+  return { handle: h, downloaded: false };
 }

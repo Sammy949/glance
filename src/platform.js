@@ -5,9 +5,18 @@
 export const isTauri = () =>
   typeof window !== 'undefined' && !!window.__TAURI__;
 
+export async function pickNativeDocument() {
+  const file = await window.__TAURI__.core.invoke('open_native_file');
+  return file ? { ...file, handle: null } : null;
+}
+
+export async function saveNativeDocument({ path, name, text }) {
+  return window.__TAURI__.core.invoke('save_native_file', { path, name, text });
+}
+
 /**
  * When running under Tauri, deliver files glance was launched with:
- *  - on startup: the file passed on the command line / via file association
+ *  - on startup: files passed on the command line / via file association
  *  - later: files from a second launch, forwarded by the single-instance plugin
  *  - live: `file-changed` when the watched file is modified on disk
  * `onFile` handles opens; `onChange` handles external edits. Both receive a
@@ -21,16 +30,18 @@ export async function initNativeLaunch(onFile, onChange) {
   const toDoc = (f) => ({ name: f.name, text: f.text, path: f.path, handle: null });
 
   try {
-    const f = await invoke('get_launch_file');
-    if (f && typeof f.text === 'string') onFile(toDoc(f));
+    const files = await invoke('get_launch_files');
+    for (const file of files || []) if (typeof file.text === 'string') await onFile(toDoc(file));
   } catch (e) {
-    console.warn('[glance] get_launch_file failed:', e);
+    console.warn('[glance] get_launch_files failed:', e);
   }
 
   try {
-    await listen('open-file', (e) => { if (e.payload) onFile(toDoc(e.payload)); });
+    await listen('open-files', async (e) => {
+      for (const file of e.payload || []) await onFile(toDoc(file));
+    });
   } catch (e) {
-    console.warn('[glance] open-file listener failed:', e);
+    console.warn('[glance] open-files listener failed:', e);
   }
 
   try {
@@ -43,6 +54,6 @@ export async function initNativeLaunch(onFile, onChange) {
 /** Ask the native side to watch `path` and emit file-changed on modification. */
 export async function watchFile(path) {
   if (!isTauri() || !path) return;
-  try { await window.__TAURI__.core.invoke('watch_file', { path }); }
+  try { return await window.__TAURI__.core.invoke('watch_file', { path }); }
   catch (e) { console.warn('[glance] watch_file failed:', e); }
 }

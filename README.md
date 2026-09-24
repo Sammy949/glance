@@ -31,7 +31,7 @@ python3 -m http.server 8123
 Open it in Chrome/Edge → **Install** from the address bar. Once installed you get:
 
 - its own window (no browser chrome),
-- offline use (service worker caches the app + CDN deps after first load),
+- offline use (the service worker caches the app and vendored dependencies),
 - **double-click a `.md` to open it in glance** (File Handling API).
 
 ## Desktop app (Tauri)
@@ -72,9 +72,9 @@ Release — review and publish it from the Releases page. It can also be run
 manually from the Actions tab (`workflow_dispatch`).
 
 The frontend is copied into `src-tauri/frontend/` automatically by
-`build-web.mjs` (wired as Tauri's before-dev/build hook). A launched file is read
-in Rust and handed to the frontend via the `get_launch_file` command; a second
-launch is forwarded by the single-instance plugin (`open-file` event).
+`build-web.mjs` (wired as Tauri's before-dev/build hook). Launched files are
+read in Rust and handed to the frontend via `get_launch_files`; a second launch
+is forwarded by the single-instance plugin (`open-files` event).
 
 > All runtime deps are vendored in [`vendor/`](vendor/) (pinned by
 > `scripts/vendor.mjs`) — the app makes **zero CDN requests**, starts instantly,
@@ -83,11 +83,16 @@ launch is forwarded by the single-instance plugin (`open-file` event).
 ## Use
 
 - **Open** a file, or drag-and-drop one anywhere. `Ctrl+O`.
+- **Tabs** keep several documents open. Opening the same file focuses its tab;
+  dropping several files opens them all. `Ctrl+Tab` switches tabs and `Ctrl+W`
+  closes the active tab. Unsaved edits are protected when closing a tab.
 - **Edit** toggles a side-by-side editor with live preview. `Ctrl+E`.
-- **Save** writes back to the same file (File System Access API), or Save As for
-  dropped/new files. `Ctrl+S`.
+- **Save** writes back to the same file through a browser file handle or Tauri's
+  native file path. New files prompt for a location. Browsers without the File
+  System Access API download a copy and keep the document marked unsaved. `Ctrl+S`.
 - **Find** in the document with `Ctrl+F` (`Enter` / `Shift+Enter` to step, `Esc` to close).
 - **Reading width** toggles a centered ~74ch column (remembers your choice).
+- On narrow windows, Edit uses the full screen; `Ctrl+E` returns to Preview.
 - **Theme** toggles light/dark (remembers your choice); code blocks are syntax-highlighted.
 - **Remote images** are blocked by default; load them per-doc with one click.
 - Scroll position is remembered per file.
@@ -97,7 +102,8 @@ launch is forwarded by the single-instance plugin (`open-file` event).
 
 Click the **folder** icon (or "Open folder" on the empty screen) to open a directory:
 
-- a sidebar **file tree** of every markdown file (folders collapsible); click to switch.
+- a sidebar **file tree** of every markdown file (folders collapsible); click to
+  open or focus a tab.
 - **relative images** (`![](assets/pic.png)`) resolve from disk, including `../` up-paths.
 - **relative `.md` links** (`[see](notes/other.md)`, `[back](../index.md)`) open in-app.
 - the panel button toggles the sidebar; the folder is remembered (re-grant on next visit).
@@ -137,8 +143,8 @@ System Access API.)*
 - [x] Native live-reload (Rust file watcher; web falls back to handle-poll)
 - [x] Folder mode (v0.2) — sidebar tree, relative images + `.md` links, remembered folder
 - [x] Vendored runtime deps — zero CDN, instant startup, fully offline (v0.1.1)
-- [ ] **Later:** native save-back path; per-file scroll keyed by full path;
-      folder-wide native watch
+- [ ] **Later:** native folder browsing independent of WebView file APIs;
+      folder-wide native watch; session restoration
 
 Inline math $E = mc^2$ and a block:
 
@@ -166,7 +172,7 @@ glance/
 ├── icons/                     # generated PWA icons + favicon
 ├── scripts/generate-icons.mjs # zero-dep PNG icon generator
 └── src-tauri/                 # Tauri v2 desktop shell
-    ├── src/{lib,main}.rs      # launch-file reader + single-instance
+    ├── src/{lib,main}.rs      # native open/save/watch + single-instance
     ├── tauri.conf.json        # window, bundle, .md file associations
     ├── build-web.mjs          # copies web app -> src-tauri/frontend
     └── capabilities/          # v2 ACL
