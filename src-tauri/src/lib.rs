@@ -1,7 +1,7 @@
 // glance — Tauri v2 shell around the web app.
 // Two native jobs:
-//  1. Launch/association: when glance is opened with a file path, read it and
-//     hand it to the frontend (get_launch_file command / open-file event).
+//  1. Launch/association: read file paths and hand them to the frontend
+//     (get_launch_files command / open-files event).
 //  2. Live-reload: watch the current file's folder and emit file-changed when
 //     it's modified on disk (external editor), so the frontend re-renders.
 
