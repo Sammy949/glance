@@ -111,6 +111,7 @@ function renderTabs() {
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'tab-close';
+    close.tabIndex = tab === activeTab ? 0 : -1;
     close.setAttribute('aria-label', `Close ${tab.name}`);
     close.textContent = '×';
     close.onclick = () => closeTab(tab);
@@ -124,6 +125,7 @@ function renderTabs() {
 }
 
 els.tabs.addEventListener('keydown', (event) => {
+  if (event.target.getAttribute('role') !== 'tab') return;
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Delete'].includes(event.key)) return;
   const current = tabs.indexOf(activeTab);
   if (current < 0) return;
