@@ -42,20 +42,21 @@ fn read_opened(path: &PathBuf) -> Option<OpenedFile> {
     })
 }
 
-/// First readable file path among process args (skips flags).
-fn file_from_args(args: &[String]) -> Option<OpenedFile> {
+/// Read every file path passed through an OS file association (skips flags).
+fn files_from_args(args: &[String]) -> Vec<OpenedFile> {
     args.iter()
         .skip(1)
         .filter(|a| !a.starts_with('-'))
-        .find_map(|a| read_opened(&PathBuf::from(a)))
+        .filter_map(|a| read_opened(&PathBuf::from(a)))
+        .collect()
 }
 
-/// Called by the frontend on startup to pick up a launched file.
+/// Called by the frontend on startup to pick up launched files.
 #[tauri::command]
-fn get_launch_file(app: tauri::AppHandle) -> Option<OpenedFile> {
-    let file = file_from_args(&std::env::args().collect::<Vec<_>>())?;
-    allow_file(&app, &PathBuf::from(&file.path));
-    Some(file)
+fn get_launch_files(app: tauri::AppHandle) -> Vec<OpenedFile> {
+    let files = files_from_args(&std::env::args().collect::<Vec<_>>());
+    for file in &files { allow_file(&app, &PathBuf::from(&file.path)); }
+    files
 }
 
 #[tauri::command]
@@ -148,10 +149,9 @@ pub fn run() {
         // Single instance first: a second launch forwards its args instead of
         // opening a new window.
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            if let Some(file) = file_from_args(&argv) {
-                allow_file(app, &PathBuf::from(&file.path));
-                let _ = app.emit("open-file", file);
-            }
+            let files = files_from_args(&argv);
+            for file in &files { allow_file(app, &PathBuf::from(&file.path)); }
+            if !files.is_empty() { let _ = app.emit("open-files", files); }
             if let Some(win) = app.get_webview_window("main") {
                 let _ = win.set_focus();
             }
@@ -159,7 +159,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(WatchState(Mutex::new(None)))
         .manage(FileAccess(Mutex::new(HashSet::new())))
-        .invoke_handler(tauri::generate_handler![get_launch_file, open_native_file, save_native_file, watch_file])
+        .invoke_handler(tauri::generate_handler![get_launch_files, open_native_file, save_native_file, watch_file])
         .run(tauri::generate_context!())
         .expect("error while running glance");
 }

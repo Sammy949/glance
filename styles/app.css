@@ -24,6 +24,9 @@ body.theme-dark {
   --editor-bg: #181818;
   --editor-fg: #d4d4d4;
   --sidebar-bg: #181818;
+  --content-link: #82baf0;
+  --interactive-ink: #82baf0;
+  --focus-ring: #82baf0;
 }
 
 /* The Onee logo navy IS the brand blue — one exact value across both light and dark,
@@ -33,31 +36,39 @@ body.theme-dark {
   --brand: #004883;                     /* solid fills (white text sits on it) */
   --accent: #004883;                    /* text, links, outlines, active states */
   --accent-tint: rgba(0, 72, 131, .15); /* subtle wash behind active/drag states */
+  --interactive-ink: #004883;
+  --focus-ring: #004883;
 }
+body.theme-dark { --interactive-ink: #82baf0; --focus-ring: #82baf0; }
 @media (max-width: 720px) { :root { --sidebar-w: 216px; } }
 
 html, body { min-height: 100%; }
 
 /* ---------------- toolbar ---------------- */
+#app-mark {
+  position: fixed; top: 17px; left: 16px; z-index: 1000;
+  display: flex; align-items: center; gap: 7px;
+  color: var(--ui-fg); font: 600 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+#app-mark img { width: 25px; height: 25px; }
 #toolbar {
-  position: fixed; top: 14px; right: 14px; z-index: 1000;
+  position: fixed; top: 10px; right: 12px; z-index: 1000;
   display: flex; gap: 4px; align-items: center;
-  padding: 6px; border-radius: 12px;
-  background: rgba(30, 30, 30, .72); backdrop-filter: blur(8px);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, .28);
+  padding: 4px; border-radius: 8px;
+  background: var(--ui-bg);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 #toolbar button {
   all: unset; cursor: pointer;
-  color: #e8e8e8; line-height: 0;
-  padding: 8px; border-radius: 8px;
+  color: var(--ui-fg); line-height: 0;
+  padding: 9px; border-radius: 7px;
   display: inline-flex; align-items: center; justify-content: center;
   transition: background .12s ease, color .12s ease;
 }
 #toolbar button svg { width: 18px; height: 18px; display: block; }
-#toolbar button:hover { background: rgba(255, 255, 255, .14); }
-#toolbar button:active { background: rgba(255, 255, 255, .24); }
-#toolbar .sep { width: 1px; height: 20px; background: rgba(255, 255, 255, .18); margin: 0 3px; }
+#toolbar button:hover { background: var(--accent-tint); }
+#toolbar button:active { background: rgba(0, 72, 131, .24); }
+#toolbar .sep { width: 1px; height: 20px; background: var(--ui-border); margin: 0 3px; }
 
 /* Open documents sit beneath the toolbar so controls never cover tab labels. */
 #document-bar {
@@ -106,6 +117,7 @@ body.mode-edit #content { height: 100vh; overflow: auto; }
   body.mode-edit #editor { height: 100%; border-right: 0; border-bottom: 1px solid var(--ui-border); }
   body.mode-edit #content { height: 100%; }
 }
+@media (max-width: 360px) { #app-mark { display: none; } }
 
 /* ---------------- empty state ---------------- */
 #empty {
@@ -180,7 +192,7 @@ body.reading-width:not(.mode-edit) #content {
   margin-inline: auto;
   padding-inline: clamp(16px, 5vw, 40px);
 }
-#toolbar button[aria-pressed="true"] { background: rgba(255, 255, 255, .22); color: #fff; }
+#toolbar button[aria-pressed="true"] { background: var(--accent-tint); color: var(--interactive-ink); }
 
 /* ---------------- find ---------------- */
 #findbar {
@@ -288,6 +300,20 @@ body.has-sidebar #empty { margin-left: var(--sidebar-w); }
 #file-tree button svg { width: 15px; height: 15px; flex: none; opacity: .7; }
 #file-tree span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #file-tree .tree-file.active { background: var(--accent-tint); color: var(--accent); font-weight: 600; }
+body.theme-dark #file-tree .tree-file.active { color: var(--interactive-ink); }
 #file-tree .tree-file.active svg { opacity: 1; }
 #file-tree .tree-dir .chev { display: inline-flex; transition: transform .12s ease; opacity: .5; }
 #file-tree li.open > .tree-dir .chev { transform: rotate(90deg); }
+
+:is(#toolbar button, #tabs button, #file-tree button, #sidebar-head button,
+  #findbar button, #find-input, #empty button, .copy-btn):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  #app-mark span { display: none; }
+  body.mode-edit #workspace { display: block; height: 100vh; }
+  body.mode-edit #editor { height: 100vh; border: 0; }
+  body.mode-edit #content { display: none; }
+}

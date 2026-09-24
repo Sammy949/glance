@@ -144,12 +144,15 @@ let renderer = null;
 const rendererReady = createRenderer().then((r) => (renderer = r));
 
 state.theme = initTheme();
-state.readingWidth = store.get('glance.readingWidth', false);
+state.readingWidth = store.get('glance.readingWidth', true);
 
 /* ---------------- rendering ---------------- */
 
+let renderVersion = 0;
 async function renderPreview() {
+  const version = ++renderVersion;
   await rendererReady;
+  if (version !== renderVersion) return;
   const tab = activeTab;
   if (!tab) return;
   revokeObjectUrls();
@@ -173,8 +176,8 @@ async function renderPreview() {
   addCopyButtons();
   els.btnImages.hidden = !foundRemote;
   updateImagesButton();
-  await resolveRelativeAssets();
-  if (tab === activeTab) find.setContainer(els.content);
+  await resolveRelativeAssets(tab, version);
+  if (version === renderVersion && tab === activeTab) find.setContainer(els.content);
 }
 
 /* ---------------- folder mode: relative assets ---------------- */
@@ -187,8 +190,8 @@ function revokeObjectUrls() {
 
 /* Normalize a relative path against the current file's dir → segments from root,
  * or null if it escapes the root or is empty. */
-function resolveRel(relPath) {
-  const base = (state.relDir || []).slice();
+function resolveRel(relPath, baseDir = state.relDir) {
+  const base = (baseDir || []).slice();
   for (const p of relPath.split('/')) {
     if (p === '' || p === '.') continue;
     if (p === '..') { if (!base.length) return null; base.pop(); }
@@ -202,18 +205,20 @@ function decodePath(value) {
 }
 
 /* In folder mode, swap relative <img> srcs for blob URLs read from disk. */
-async function resolveRelativeAssets() {
-  if (!state.docRoot || state.relDir == null) return;
+async function resolveRelativeAssets(tab, version) {
+  if (!tab.docRoot || tab.relDir == null) return;
   for (const img of els.content.querySelectorAll('img[src]')) {
     const raw = img.getAttribute('src') || '';
     if (!raw || /^(https?:|data:|blob:)/i.test(raw)) continue;
     const decoded = decodePath(raw.split('#')[0].split('?')[0]);
-    const segs = decoded && resolveRel(decoded);
+    const segs = decoded && resolveRel(decoded, tab.relDir);
     if (!segs) continue;
-    const res = await folder.resolveSegments(state.docRoot, segs);
+    const res = await folder.resolveSegments(tab.docRoot, segs);
+    if (version !== renderVersion) return;
     if (res) {
       try {
         const url = URL.createObjectURL(await res.fileHandle.getFile());
+        if (version !== renderVersion) { URL.revokeObjectURL(url); return; }
         objectUrls.push(url);
         img.src = url;
       } catch { /* unreadable — leave as-is */ }
@@ -478,7 +483,13 @@ function closeFolder() {
 }
 
 function newDoc() {
-  loadDoc({ name: 'untitled.md', text: '', handle: null, mode: 'edit' });
+  let number = 1;
+  let name = 'untitled.md';
+  while (tabs.some((tab) => tab.name === name && !tab.path)) {
+    number++;
+    name = `untitled-${number}.md`;
+  }
+  loadDoc({ name, text: '', handle: null, mode: 'edit' });
 }
 
 function updateTitle() {
@@ -593,20 +604,28 @@ async function save() {
       ? await saveNativeDocument({ path: state.path, text, name: state.name })
       : await saveFile({ handle: state.handle, text, name: state.name });
     if (isTauri() && !result) return;
-    if (savingTab !== activeTab) return;
     if (isTauri()) {
-      state.path = result.path;
-      state.key = result.path;
-      state.name = result.name;
-      startWatch({ path: result.path });
-    } else if (result) {
-      state.handle = result;
-      if (result.name) state.name = result.name;
+      savingTab.path = result.path;
+      savingTab.key = result.path;
+      savingTab.name = result.name;
+    } else if (result.downloaded) {
+      flash('Downloaded a copy; original unchanged');
+      return;
+    } else if (result.handle) {
+      savingTab.handle = result.handle;
+      if (result.handle.name) savingTab.name = result.handle.name;
     }
-    if (state.text === text) state.dirty = false;
-    rememberActive();
-    updateTitle();
-    flash(state.dirty ? 'Saved; newer edits remain' : 'Saved');
+    savingTab.dirty = savingTab.text !== text;
+    if (savingTab === activeTab) {
+      state.path = savingTab.path;
+      state.key = savingTab.key;
+      state.name = savingTab.name;
+      state.handle = savingTab.handle;
+      state.dirty = savingTab.dirty;
+      if (isTauri()) startWatch(savingTab);
+      updateTitle();
+    } else renderTabs();
+    flash(savingTab.dirty ? 'Saved; newer edits remain' : `Saved ${savingTab.name}`);
   } catch (e) {
     if (e && e.name === 'AbortError') return;
     console.error(e);
@@ -703,8 +722,8 @@ addEventListener('dragleave', (e) => { if (e.relatedTarget === null) document.bo
 addEventListener('drop', async (e) => {
   e.preventDefault();
   document.body.classList.remove('dragging');
-  const doc = await fromDrop(e.dataTransfer);
-  if (doc) await loadDoc(doc);
+  const docs = await fromDrop(e.dataTransfer);
+  for (const doc of docs) await loadDoc(doc);
 });
 
 /* warn on unsaved changes */
@@ -732,7 +751,7 @@ if (qFile) {
 
 /* native (Tauri): load launched/associated files + apply live file changes */
 initNativeLaunch(
-  (doc) => { loadDoc(doc); },
+  (doc) => loadDoc(doc),
   (doc) => { if (doc.path && doc.path === state.key) externalUpdate(doc.text); }
 );
 
