@@ -36,6 +36,11 @@
     <button id="btn-theme" title="Toggle light/dark" aria-label="Toggle theme"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v2"/><path d="M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715"/><path d="M16 12a4 4 0 0 0-4-4"/><path d="m19 5-1.256 1.256"/><path d="M20 12h2"/></svg></button>
   </div>
 
+  <div id="document-bar" hidden>
+    <div id="tabs" role="tablist" aria-label="Open documents"></div>
+    <span id="document-status" aria-live="polite"></span>
+  </div>
+
   <aside id="sidebar" hidden>
     <div id="sidebar-head">
       <span id="folder-name" title=""></span>
@@ -60,7 +65,7 @@
     </div>
   </div>
 
-  <div id="workspace" hidden>
+  <div id="workspace" role="tabpanel" hidden>
     <textarea id="editor" spellcheck="false" placeholder="# Write markdown…"></textarea>
     <div class="container" id="content"></div>
   </div>
