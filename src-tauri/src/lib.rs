@@ -7,9 +7,11 @@
 
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
+use tauri_plugin_dialog::DialogExt;
 
 #[derive(Serialize, Clone)]
 struct OpenedFile {
@@ -20,9 +22,15 @@ struct OpenedFile {
 
 /// Holds the active watcher so it stays alive; replaced when a new file is watched.
 struct WatchState(Mutex<Option<RecommendedWatcher>>);
+struct FileAccess(Mutex<HashSet<PathBuf>>);
+
+fn allow_file(app: &tauri::AppHandle, path: &PathBuf) {
+    app.state::<FileAccess>().0.lock().unwrap().insert(path.clone());
+}
 
 fn read_opened(path: &PathBuf) -> Option<OpenedFile> {
-    let text = std::fs::read_to_string(path).ok()?;
+    let path = std::fs::canonicalize(path).ok()?;
+    let text = std::fs::read_to_string(&path).ok()?;
     let name = path
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
@@ -44,8 +52,53 @@ fn file_from_args(args: &[String]) -> Option<OpenedFile> {
 
 /// Called by the frontend on startup to pick up a launched file.
 #[tauri::command]
-fn get_launch_file() -> Option<OpenedFile> {
-    file_from_args(&std::env::args().collect::<Vec<_>>())
+fn get_launch_file(app: tauri::AppHandle) -> Option<OpenedFile> {
+    let file = file_from_args(&std::env::args().collect::<Vec<_>>())?;
+    allow_file(&app, &PathBuf::from(&file.path));
+    Some(file)
+}
+
+#[tauri::command]
+async fn open_native_file(app: tauri::AppHandle) -> Result<Option<OpenedFile>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let picked = app.dialog().file()
+            .add_filter("Markdown", &["md", "markdown", "mdown", "mkd", "txt"])
+            .blocking_pick_file();
+        let Some(picked) = picked else { return Ok(None) };
+        let path = picked.into_path().map_err(|e| e.to_string())?;
+        let file = read_opened(&path).ok_or("Could not read file")?;
+        allow_file(&app, &PathBuf::from(&file.path));
+        Ok(Some(file))
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn save_native_file(
+    app: tauri::AppHandle,
+    path: Option<String>,
+    name: String,
+    text: String,
+) -> Result<Option<OpenedFile>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let target = if let Some(path) = path {
+            let target = std::fs::canonicalize(&path).map_err(|e| e.to_string())?;
+            if !app.state::<FileAccess>().0.lock().unwrap().contains(&target) {
+                return Err("File is not open in glance".to_string());
+            }
+            target
+        } else {
+            let picked = app.dialog().file()
+                .add_filter("Markdown", &["md", "markdown", "mdown", "mkd", "txt"])
+                .set_file_name(name.clone())
+                .blocking_save_file();
+            let Some(picked) = picked else { return Ok(None) };
+            picked.into_path().map_err(|e| e.to_string())?
+        };
+        std::fs::write(&target, &text).map_err(|e| e.to_string())?;
+        let file = read_opened(&target).ok_or("Could not reopen saved file")?;
+        allow_file(&app, &PathBuf::from(&file.path));
+        Ok(Some(file))
+    }).await.map_err(|e| e.to_string())?
 }
 
 /// Watch `path`'s parent directory and emit `file-changed` when that file is
@@ -58,6 +111,10 @@ fn watch_file(
     path: String,
 ) -> Result<(), String> {
     let target = PathBuf::from(&path);
+    let target = std::fs::canonicalize(target).map_err(|e| e.to_string())?;
+    if !app.state::<FileAccess>().0.lock().unwrap().contains(&target) {
+        return Err("File is not open in glance".to_string());
+    }
     let dir = target
         .parent()
         .map(|p| p.to_path_buf())
@@ -92,14 +149,17 @@ pub fn run() {
         // opening a new window.
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             if let Some(file) = file_from_args(&argv) {
+                allow_file(app, &PathBuf::from(&file.path));
                 let _ = app.emit("open-file", file);
             }
             if let Some(win) = app.get_webview_window("main") {
                 let _ = win.set_focus();
             }
         }))
+        .plugin(tauri_plugin_dialog::init())
         .manage(WatchState(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![get_launch_file, watch_file])
+        .manage(FileAccess(Mutex::new(HashSet::new())))
+        .invoke_handler(tauri::generate_handler![get_launch_file, open_native_file, save_native_file, watch_file])
         .run(tauri::generate_context!())
         .expect("error while running glance");
 }

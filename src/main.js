@@ -4,7 +4,7 @@ import { createRenderer } from './pipeline.js';
 import { initTheme, toggleTheme } from './theme.js';
 import { pickFile, saveFile, fromDrop, fromHandle } from './files.js';
 import { ICONS } from './icons.js';
-import { isTauri, initNativeLaunch, watchFile } from './platform.js';
+import { isTauri, initNativeLaunch, watchFile, pickNativeDocument, saveNativeDocument } from './platform.js';
 import * as find from './find.js';
 import * as folder from './folder.js';
 
@@ -589,11 +589,19 @@ async function save() {
   try {
     const savingTab = activeTab;
     const text = state.text;
-    const h = await saveFile({ handle: state.handle, text, name: state.name });
+    const result = isTauri()
+      ? await saveNativeDocument({ path: state.path, text, name: state.name })
+      : await saveFile({ handle: state.handle, text, name: state.name });
+    if (isTauri() && !result) return;
     if (savingTab !== activeTab) return;
-    if (h) {
-      state.handle = h;
-      if (h.name) state.name = h.name;
+    if (isTauri()) {
+      state.path = result.path;
+      state.key = result.path;
+      state.name = result.name;
+      startWatch({ path: result.path });
+    } else if (result) {
+      state.handle = result;
+      if (result.name) state.name = result.name;
     }
     if (state.text === text) state.dirty = false;
     rememberActive();
@@ -619,7 +627,7 @@ function flash(msg) {
 /* ---------------- open helper ---------------- */
 
 async function openFile() {
-  const doc = await pickFile();
+  const doc = isTauri() ? await pickNativeDocument() : await pickFile();
   if (doc) await loadDoc(doc);
 }
 

@@ -5,6 +5,15 @@
 export const isTauri = () =>
   typeof window !== 'undefined' && !!window.__TAURI__;
 
+export async function pickNativeDocument() {
+  const file = await window.__TAURI__.core.invoke('open_native_file');
+  return file ? { ...file, handle: null } : null;
+}
+
+export async function saveNativeDocument({ path, name, text }) {
+  return window.__TAURI__.core.invoke('save_native_file', { path, name, text });
+}
+
 /**
  * When running under Tauri, deliver files glance was launched with:
  *  - on startup: the file passed on the command line / via file association
