@@ -87,11 +87,13 @@ is forwarded by the single-instance plugin (`open-files` event).
 - **Open** a file, or drag-and-drop one anywhere. `Ctrl+O`.
 - **Tabs** keep several documents open. Opening the same file focuses its tab;
   dropping several files opens them all. `Ctrl+Tab` switches tabs and `Ctrl+W`
-  closes the active tab. Unsaved edits are protected when closing a tab.
+  closes the active tab. A dot marks changed text; hover or focus it to reveal
+  Close. Closing a changed tab asks before discarding edits.
 - **Edit** toggles a side-by-side editor with live preview. `Ctrl+E`.
 - **Save** writes back to the same file through a browser file handle or Tauri's
-  native file path. New files prompt for a location. Browsers without the File
-  System Access API download a copy and keep the document marked unsaved. `Ctrl+S`.
+  native file path. The toolbar action appears when the active file changes;
+  `Ctrl+S` also works. New files prompt for a location. Browsers without the File
+  System Access API download a copy and keep the document marked unsaved.
 - **Find** in the document with `Ctrl+F` (`Enter` / `Shift+Enter` to step, `Esc` to close).
 - **Reading width** toggles a centered ~74ch column (remembers your choice).
 - On narrow windows, Edit uses the full screen; `Ctrl+E` returns to Preview.
