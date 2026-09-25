@@ -107,7 +107,8 @@ is forwarded by the single-instance plugin (`open-files` event).
 Click the **folder** icon (or "Open folder" on the empty screen) to open a directory:
 
 - a sidebar **file tree** of every markdown file (folders collapsible); click to
-  open or focus a tab.
+  open or focus a tab. On narrow screens it overlays the reader and closes after
+  you choose a file.
 - **relative images** (`![](assets/pic.png)`) resolve from disk, including `../` up-paths.
 - **relative `.md` links** (`[see](notes/other.md)`, `[back](../index.md)`) open in-app.
 - the panel button toggles the sidebar; the folder is remembered (re-grant on next visit).

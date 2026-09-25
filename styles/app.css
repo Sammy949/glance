@@ -44,11 +44,30 @@ body.theme-dark {
   --accent-tint: rgba(0, 72, 131, .15); /* subtle wash behind active/drag states */
   --interactive-ink: #004883;
   --focus-ring: #004883;
+  --scroll-thumb: #e1e4e8;
+  --scroll-thumb-hover: #6a737d;
 }
 body.theme-dark { --interactive-ink: #82baf0; --focus-ring: #82baf0; }
+html:has(body.theme-dark) { --scroll-thumb: #333; --scroll-thumb-hover: #8b8b8b; }
 @media (max-width: 720px) { :root { --sidebar-w: 216px; } }
 
 html, body { min-height: 100%; }
+
+/* Same quiet 4px treatment as samuelyahaya.com, with glance's light/dark tones. */
+:where(html, #tabs, #file-tree, #editor, #content) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+@supports selector(::-webkit-scrollbar) {
+  :where(html, #tabs, #file-tree, #editor, #content) {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
+}
 
 /* ---------------- toolbar ---------------- */
 #app-header {
@@ -63,6 +82,7 @@ html, body { min-height: 100%; }
 }
 #app-mark img { width: 25px; height: 25px; }
 body:not(.has-tabs) #app-mark { display: none; }
+body:not(.has-tabs) #toolbar :is(#btn-open, #btn-folder, #btn-new) { display: none; }
 #toolbar {
   margin-left: auto;
   display: flex; gap: 4px; align-items: center;
@@ -81,6 +101,7 @@ body:not(.has-tabs) #app-mark { display: none; }
 #toolbar button:active { background: rgba(0, 72, 131, .24); }
 #toolbar .sep { width: 1px; height: 20px; background: var(--ui-border); margin: 0 3px; }
 body:not(.has-tabs) #toolbar .sep { display: none; }
+body.mode-edit #btn-width { display: none !important; }
 
 /* Open documents sit beneath the toolbar so controls never cover tab labels. */
 #document-bar {
@@ -254,8 +275,6 @@ body.reading-width:not(.mode-edit) #content {
 
 /* ---------------- smoothing ---------------- */
 html { scroll-behavior: smooth; }
-body { transition: background-color .25s ease, color .25s ease; }
-#editor { transition: background-color .25s ease, color .25s ease; }
 
 @keyframes glance-pop {
   from { transform: translateX(-50%) translateY(-6px); }
@@ -274,7 +293,6 @@ body { transition: background-color .25s ease, color .25s ease; }
   html { scroll-behavior: auto; }
   #findbar:not([hidden]) { animation: none; }
   #empty-mark { animation: none; }
-  body, #editor { transition: none; }
 }
 
 /* ---------------- folder mode: sidebar + tree ---------------- */
@@ -331,7 +349,16 @@ body.theme-dark #file-tree .tree-file.active { color: var(--interactive-ink); }
 @media (max-width: 720px) {
   #app-mark span { display: none; }
   #btn-width { display: none !important; }
+  body.mode-edit #btn-images { display: none !important; }
   body.mode-edit #workspace { display: block; height: 100vh; }
   body.mode-edit #editor { height: 100vh; border: 0; }
   body.mode-edit #content { display: none; }
+}
+@media (max-width: 600px) {
+  #sidebar { z-index: 950; }
+  body.has-sidebar #document-bar { left: 0; }
+  body.has-sidebar #workspace, body.has-sidebar #empty { margin-left: 0; }
+}
+@media (max-width: 360px) {
+  #app-mark, body.has-sidebar #btn-folder { display: none; }
 }

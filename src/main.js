@@ -469,6 +469,7 @@ async function selectTreeFile(node) {
     await loadDoc({ name: file.name, text: await file.text(), handle: node.handle,
       docRoot: state.root, relDir: node.parentPath,
       key: `${state.root.name}/${[...node.parentPath, file.name].join('/')}` });
+    if (matchMedia('(max-width: 600px)').matches) document.body.classList.remove('has-sidebar');
   } catch (e) { console.warn(e); flash('Could not open file'); }
 }
 
