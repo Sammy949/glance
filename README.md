@@ -64,14 +64,15 @@ cargo tauri build    # installers in src-tauri/target/release/bundle/
 `src-tauri/Cargo.toml` is updated, merged, and checked on `main`:
 
 ```bash
-node scripts/check-release.mjs v0.3.0
-git tag v0.3.0 && git push origin v0.3.0
+node scripts/check-release.mjs v0.3.1
+git tag v0.3.1 && git push origin v0.3.1
 ```
 
 The `release` workflow checks that the tag matches both package versions and
 points to a commit on `main`. It then builds Windows (`.msi`/`.exe`), macOS
 (`.dmg`) and Linux (`.deb`/`.AppImage`) installers on native runners and attaches
-them to a **draft** GitHub Release. Review and publish it from the Releases page.
+them to a **draft** GitHub Release. A tarball of the static web app is attached after
+the desktop builds. Review and publish the release from the Releases page.
 
 The frontend is copied into `src-tauri/frontend/` automatically by
 `build-web.mjs` (wired as Tauri's before-dev/build hook). Launched files are
