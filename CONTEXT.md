@@ -111,8 +111,9 @@ blue for legibility against the dark page; the logo navy itself is unchanged.
 
 **Editor:** `Ctrl+E` toggles side-by-side textarea + live preview (120ms
 debounce), or full-height editing on narrow windows. `Ctrl+S` saves back via a
-browser handle or native path; dirty flags appear in tabs and the title;
-beforeunload and tab-close guards protect unsaved edits. A download fallback
+browser handle or native path; changed tabs show a dot in the close slot and
+Save appears only for the active changed file. Dirty flags also appear in the
+title; beforeunload and tab-close guards protect unsaved edits. A download fallback
 keeps the tab dirty because it cannot confirm an in-place save.
 
 **Tabs:** each open document keeps its own text, dirty state, mode, scroll,

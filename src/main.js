@@ -45,6 +45,7 @@ const state = {
   name: null,
   key: null,           // identity for scroll memory (path || name)
   text: '',
+  savedText: '',
   handle: null,
   mode: 'read',        // 'read' | 'edit'
   imagesAllowed: false,
@@ -63,7 +64,7 @@ let nextTabId = 1;
 
 function rememberActive() {
   if (!activeTab) return;
-  for (const key of ['name', 'key', 'text', 'handle', 'mode', 'imagesAllowed', 'dirty', 'docRoot', 'relDir', 'path']) {
+  for (const key of ['name', 'key', 'text', 'savedText', 'handle', 'mode', 'imagesAllowed', 'dirty', 'docRoot', 'relDir', 'path']) {
     activeTab[key] = state[key];
   }
   activeTab.scrollY = window.scrollY;
@@ -72,7 +73,7 @@ function rememberActive() {
 }
 
 function restoreActive(tab) {
-  for (const key of ['name', 'key', 'text', 'handle', 'mode', 'imagesAllowed', 'dirty', 'docRoot', 'relDir', 'path']) {
+  for (const key of ['name', 'key', 'text', 'savedText', 'handle', 'mode', 'imagesAllowed', 'dirty', 'docRoot', 'relDir', 'path']) {
     state[key] = tab[key];
   }
 }
@@ -97,6 +98,9 @@ function renderTabs() {
     const wrapper = document.createElement('div');
     wrapper.className = 'tab';
     if (tab === activeTab) wrapper.classList.add('active');
+    wrapper.addEventListener('click', (event) => {
+      if (!event.target.closest('.tab-close')) activateTab(tab);
+    });
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'tab-select';
@@ -107,21 +111,22 @@ function renderTabs() {
     button.tabIndex = tab === activeTab ? 0 : -1;
     button.title = tab.path || tab.key || tab.name;
     button.textContent = tab.name;
-    button.onclick = () => activateTab(tab);
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'tab-close';
     close.tabIndex = tab === activeTab ? 0 : -1;
-    close.setAttribute('aria-label', `Close ${tab.name}`);
-    close.textContent = '×';
-    close.onclick = () => closeTab(tab);
+    close.setAttribute('aria-label', tab.dirty ? `Close ${tab.name}, unsaved changes` : `Close ${tab.name}`);
+    close.classList.toggle('dirty', tab.dirty);
+    close.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg><span class="dirty-mark" aria-hidden="true"></span>';
+    close.onclick = (event) => { event.stopPropagation(); closeTab(tab); };
     wrapper.append(button, close);
     els.tabs.append(wrapper);
   }
   const selected = els.tabs.querySelector('.active .tab-select');
   if (selected) els.workspace.setAttribute('aria-labelledby', selected.id);
-  selected?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  selected?.parentElement?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   els.documentStatus.textContent = activeTab ? (state.dirty ? 'Unsaved changes' : 'Saved') : '';
+  els.btnSave.hidden = !activeTab?.dirty;
 }
 
 els.tabs.addEventListener('keydown', (event) => {
@@ -273,7 +278,7 @@ async function loadDoc(doc) {
   const tab = {
     id: nextTabId++, name: doc.name || 'untitled.md',
     key: doc.path || doc.key || doc.name || null,
-    path: doc.path || null, text: doc.text || '', handle: doc.handle || null,
+    path: doc.path || null, text: doc.text || '', savedText: doc.text || '', handle: doc.handle || null,
     mode: doc.mode || 'read', imagesAllowed: false, dirty: false,
     docRoot: doc.docRoot || null, relDir: doc.relDir ?? null,
     scrollY: doc.key ? scrollStore[doc.key] || 0 : 0, previewY: 0, editorY: 0,
@@ -292,7 +297,6 @@ async function activateTab(tab) {
   els.editor.value = state.text;
   els.empty.hidden = true;
   els.workspace.hidden = false;
-  els.btnSave.hidden = false;
   els.btnEdit.hidden = false;
   els.btnWidth.hidden = false;
   document.body.classList.toggle('mode-edit', state.mode === 'edit');
@@ -301,10 +305,6 @@ async function activateTab(tab) {
   renderTabs();
   await renderPreview();
   if (tab !== activeTab) return;
-  // one-shot enter animation (read loads only; live edits call renderPreview directly)
-  els.content.classList.remove('enter');
-  void els.content.offsetWidth;
-  els.content.classList.add('enter');
   window.scrollTo({ top: tab.scrollY, left: 0, behavior: 'instant' });
   els.content.scrollTop = tab.previewY;
   els.editor.scrollTop = tab.editorY;
@@ -328,7 +328,6 @@ async function closeTab(tab) {
   } else {
     els.workspace.hidden = true;
     els.empty.hidden = false;
-    els.btnSave.hidden = true;
     els.btnEdit.hidden = true;
     els.btnWidth.hidden = true;
     els.btnImages.hidden = true;
@@ -383,7 +382,9 @@ function externalUpdate(text) {
   if (state.dirty) { flash('File changed on disk — unsaved edits kept'); return; }
   const y = window.scrollY;
   state.text = text;
+  state.savedText = text;
   if (activeTab) activeTab.text = text;
+  if (activeTab) activeTab.savedText = text;
   els.editor.value = text;
   renderPreview().then(() => window.scrollTo({ top: y, left: 0, behavior: 'instant' }));
 }
@@ -468,6 +469,7 @@ async function selectTreeFile(node) {
     await loadDoc({ name: file.name, text: await file.text(), handle: node.handle,
       docRoot: state.root, relDir: node.parentPath,
       key: `${state.root.name}/${[...node.parentPath, file.name].join('/')}` });
+    if (matchMedia('(max-width: 600px)').matches) document.body.classList.remove('has-sidebar');
   } catch (e) { console.warn(e); flash('Could not open file'); }
 }
 
@@ -597,7 +599,8 @@ let renderTimer = null;
 els.editor.addEventListener('input', () => {
   state.text = els.editor.value;
   if (activeTab) activeTab.text = state.text;
-  if (!state.dirty) { state.dirty = true; updateTitle(); }
+  const dirty = state.text !== state.savedText;
+  if (dirty !== state.dirty) { state.dirty = dirty; updateTitle(); }
   clearTimeout(renderTimer);
   renderTimer = setTimeout(renderPreview, 120);
 });
@@ -624,12 +627,14 @@ async function save() {
       savingTab.handle = result.handle;
       if (result.handle.name) savingTab.name = result.handle.name;
     }
+    savingTab.savedText = text;
     savingTab.dirty = savingTab.text !== text;
     if (savingTab === activeTab) {
       state.path = savingTab.path;
       state.key = savingTab.key;
       state.name = savingTab.name;
       state.handle = savingTab.handle;
+      state.savedText = savingTab.savedText;
       state.dirty = savingTab.dirty;
       if (isTauri()) startWatch(savingTab);
       updateTitle();
@@ -675,6 +680,8 @@ applyReadingWidth();
 /* folder-mode controls */
 els.btnFolder.onclick = openFolder;
 els.btnFolder2.onclick = openFolder;
+els.btnFolder.hidden = !folder.supported();
+els.btnFolder2.hidden = !folder.supported();
 els.btnSidebar.onclick = toggleSidebar;
 els.btnFolderClose.onclick = closeFolder;
 

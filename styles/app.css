@@ -9,6 +9,9 @@
 
 body.theme-light {
   --ui-bg: rgba(255, 255, 255, .8);
+  --chrome-bg: #fff;
+  --tab-rail: #f3f6f8;
+  --tab-accent: #004883;
   --ui-fg: #24292e;
   --ui-border: #e1e4e8;
   --ui-muted: #6a737d;
@@ -18,6 +21,9 @@ body.theme-light {
 }
 body.theme-dark {
   --ui-bg: rgba(30, 30, 30, .8);
+  --chrome-bg: #1e1e1e;
+  --tab-rail: #292929;
+  --tab-accent: #82baf0;
   --ui-fg: #d4d4d4;
   --ui-border: #333;
   --ui-muted: #8b8b8b;
@@ -38,25 +44,49 @@ body.theme-dark {
   --accent-tint: rgba(0, 72, 131, .15); /* subtle wash behind active/drag states */
   --interactive-ink: #004883;
   --focus-ring: #004883;
+  --scroll-thumb: #e1e4e8;
+  --scroll-thumb-hover: #6a737d;
 }
 body.theme-dark { --interactive-ink: #82baf0; --focus-ring: #82baf0; }
+html:has(body.theme-dark) { --scroll-thumb: #333; --scroll-thumb-hover: #8b8b8b; }
 @media (max-width: 720px) { :root { --sidebar-w: 216px; } }
 
 html, body { min-height: 100%; }
 
+/* Same quiet 4px treatment as samuelyahaya.com, with glance's light/dark tones. */
+:where(html, #tabs, #file-tree, #editor, #content) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+@supports selector(::-webkit-scrollbar) {
+  :where(html, #tabs, #file-tree, #editor, #content) {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
+}
+
 /* ---------------- toolbar ---------------- */
+#app-header {
+  position: fixed; inset: 0 0 auto; z-index: 1000;
+  box-sizing: border-box; height: 64px; padding: 0 12px 0 16px;
+  display: flex; align-items: center;
+  background: var(--chrome-bg); border-bottom: 1px solid var(--ui-border);
+}
 #app-mark {
-  position: fixed; top: 17px; left: 16px; z-index: 1000;
   display: flex; align-items: center; gap: 7px;
   color: var(--ui-fg); font: 600 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 #app-mark img { width: 25px; height: 25px; }
 body:not(.has-tabs) #app-mark { display: none; }
+body:not(.has-tabs) #toolbar :is(#btn-open, #btn-folder, #btn-new) { display: none; }
 #toolbar {
-  position: fixed; top: 10px; right: 12px; z-index: 1000;
+  margin-left: auto;
   display: flex; gap: 4px; align-items: center;
   padding: 4px; border-radius: 8px;
-  background: var(--ui-bg);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 #toolbar button {
@@ -70,23 +100,29 @@ body:not(.has-tabs) #app-mark { display: none; }
 #toolbar button:hover { background: var(--accent-tint); }
 #toolbar button:active { background: rgba(0, 72, 131, .24); }
 #toolbar .sep { width: 1px; height: 20px; background: var(--ui-border); margin: 0 3px; }
+body:not(.has-tabs) #toolbar .sep { display: none; }
+body.mode-edit #btn-width { display: none !important; }
 
 /* Open documents sit beneath the toolbar so controls never cover tab labels. */
 #document-bar {
   position: fixed; z-index: 900; top: 64px; left: 0; right: 0;
-  height: 42px; display: flex; align-items: center; gap: 12px;
-  background: var(--sidebar-bg); border-bottom: 1px solid var(--ui-border);
+  height: 42px; display: flex; align-items: center;
+  background: var(--tab-rail); border-bottom: 1px solid var(--ui-border);
   font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 body.has-sidebar #document-bar { left: var(--sidebar-w); }
 #tabs { display: flex; align-items: stretch; min-width: 0; flex: 1; height: 100%; overflow-x: auto; scrollbar-width: thin; }
-.tab { display: flex; align-items: center; flex: none; max-width: 230px; border-right: 1px solid var(--ui-border); color: var(--ui-muted); }
-.tab.active { background: var(--ui-bg); color: var(--ui-fg); }
+.tab { display: flex; align-items: center; flex: none; max-width: 230px; border-right: 1px solid var(--ui-border); color: var(--ui-muted); cursor: pointer; }
+.tab.active { background: var(--chrome-bg); color: var(--ui-fg); box-shadow: inset 0 2px var(--tab-accent); }
 .tab-select, .tab-close { all: unset; cursor: pointer; box-sizing: border-box; }
 .tab-select { display: block; min-width: 48px; max-width: 190px; padding: 11px 6px 11px 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tab-close { display: grid; place-items: center; width: 30px; height: 30px; flex: none; margin-right: 4px; border-radius: 5px; font-size: 19px; line-height: 1; }
-.tab-close:hover, .tab-select:hover { background: var(--accent-tint); }
-#document-status { flex: none; margin-right: 16px; color: var(--ui-muted); font-size: 12px; }
+.tab-close { display: grid; place-items: center; width: 30px; height: 30px; flex: none; margin-right: 4px; border-radius: 5px; line-height: 1; }
+.tab-close svg { width: 15px; height: 15px; }
+.tab-close .dirty-mark { display: none; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.tab-close.dirty:not(:hover):not(:focus-visible) svg { display: none; }
+.tab-close.dirty:not(:hover):not(:focus-visible) .dirty-mark { display: block; }
+.tab-close:hover { background: rgba(128, 128, 128, .14); color: var(--ui-fg); }
+#document-status { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 body.has-tabs:not(.mode-edit) #content { padding-top: 120px; }
 body.has-tabs.mode-edit #editor, body.has-tabs.mode-edit #content { padding-top: 120px; box-sizing: border-box; }
 
@@ -118,8 +154,6 @@ body.mode-edit #content { height: 100vh; overflow: auto; }
   body.mode-edit #editor { height: 100%; border-right: 0; border-bottom: 1px solid var(--ui-border); }
   body.mode-edit #content { height: 100%; }
 }
-@media (max-width: 360px) { #app-mark { display: none; } }
-
 /* ---------------- empty state ---------------- */
 #empty {
   position: fixed; inset: 0; z-index: 500;
@@ -148,6 +182,7 @@ body.mode-edit #content { height: 100vh; overflow: auto; }
   #empty .card { width: min(100% - 32px, 360px); }
   #empty .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   #empty .actions .primary { grid-column: 1 / -1; }
+  #empty .actions:has(#btn-folder-2[hidden]) #btn-new-2 { grid-column: 1 / -1; }
   #empty button { justify-content: center; padding: 12px; min-width: 0; }
   #empty .card > p:last-child { line-height: 1.9; }
 }
@@ -240,19 +275,10 @@ body.reading-width:not(.mode-edit) #content {
 
 /* ---------------- smoothing ---------------- */
 html { scroll-behavior: smooth; }
-body { transition: background-color .25s ease, color .25s ease; }
-#editor { transition: background-color .25s ease, color .25s ease; }
-
-@keyframes glance-fade-up {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: none; }
-}
-#content.enter { animation: glance-fade-up .18s ease; }
-#empty { animation: glance-fade-up .2s ease; }
 
 @keyframes glance-pop {
-  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
-  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  from { transform: translateX(-50%) translateY(-6px); }
+  to { transform: translateX(-50%) translateY(0); }
 }
 #findbar:not([hidden]) { animation: glance-pop .14s ease; }
 
@@ -265,14 +291,13 @@ body { transition: background-color .25s ease, color .25s ease; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  #content.enter, #empty, #findbar:not([hidden]) { animation: none; }
+  #findbar:not([hidden]) { animation: none; }
   #empty-mark { animation: none; }
-  body, #editor { transition: none; }
 }
 
 /* ---------------- folder mode: sidebar + tree ---------------- */
 #sidebar {
-  position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-w);
+  position: fixed; top: 64px; left: 0; bottom: 0; width: var(--sidebar-w);
   display: none; flex-direction: column; z-index: 800;
   background: var(--sidebar-bg); border-right: 1px solid var(--ui-border);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -319,10 +344,21 @@ body.theme-dark #file-tree .tree-file.active { color: var(--interactive-ink); }
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
+#tabs button:focus-visible { outline-offset: -3px; }
 
 @media (max-width: 720px) {
   #app-mark span { display: none; }
+  #btn-width { display: none !important; }
+  body.mode-edit #btn-images { display: none !important; }
   body.mode-edit #workspace { display: block; height: 100vh; }
   body.mode-edit #editor { height: 100vh; border: 0; }
   body.mode-edit #content { display: none; }
+}
+@media (max-width: 600px) {
+  #sidebar { z-index: 950; }
+  body.has-sidebar #document-bar { left: 0; }
+  body.has-sidebar #workspace, body.has-sidebar #empty { margin-left: 0; }
+}
+@media (max-width: 360px) {
+  #app-mark, body.has-sidebar #btn-folder { display: none; }
 }
