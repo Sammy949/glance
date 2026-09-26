@@ -78,3 +78,17 @@ jobs:
           releaseBody: 'Fast, fluid markdown viewer & quick editor. See assets below for your platform.'
           releaseDraft: true
           prerelease: false
+
+  web:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package static web app
+        run: tar -czf "glance-web-${GITHUB_REF_NAME#v}.tar.gz" index.html manifest.webmanifest sw.js styles src icons vendor
+      - name: Attach web app to draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" "glance-web-${GITHUB_REF_NAME#v}.tar.gz"
