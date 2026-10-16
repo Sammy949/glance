@@ -13,6 +13,7 @@
  * Refresh one group with --only=core or --only=mermaid. */
 
 import fs from 'node:fs';
+import { patchAnchor } from './vendor-patches.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,7 +28,7 @@ const ESM_MODULES = [
   ['markdown-it-deflist.js', 'markdown-it-deflist@3'],
   ['markdown-it-task-lists.js', 'markdown-it-task-lists@2'],
   ['markdown-it-katex.js', '@traptitech/markdown-it-katex@3'],
-  ['markdown-it-anchor.js', 'markdown-it-anchor@9'],
+  ['markdown-it-anchor.js', 'markdown-it-anchor@9.2.1'],
   ['highlight.js', 'highlight.js@11/lib/common'],
 ];
 
@@ -66,6 +67,7 @@ let failed = 0;
 for (const [file, spec] of want('core') ? ESM_MODULES : []) {
   try {
     let code = await fetchEsm(spec);
+    if (file === 'markdown-it-anchor.js') code = patchAnchor(code);
     // esm.sh leaves a node process polyfill import in some builds (used only
     // for process.env checks) — shim it inline so the module is standalone.
     code = code.replace(
