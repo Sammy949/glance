@@ -126,6 +126,9 @@ body.has-sidebar #document-bar { left: var(--sidebar-w); }
 body.has-tabs:not(.mode-edit) #content { padding-top: 120px; }
 body.has-tabs.mode-edit #editor, body.has-tabs.mode-edit #content { padding-top: 120px; box-sizing: border-box; }
 
+/* Ctrl+= / Ctrl+- scale the document and editor text, not the chrome. */
+#content { font-size: calc(1rem * var(--zoom, 1)); }
+
 /* ---------------- workspace / edit split ---------------- */
 #workspace { min-height: 100vh; }
 
@@ -135,7 +138,7 @@ body.has-tabs.mode-edit #editor, body.has-tabs.mode-edit #content { padding-top:
   width: 100%; border: 0; outline: none; resize: none;
   padding: 5%;
   font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 14px; line-height: 1.6; tab-size: 2;
+  font-size: calc(14px * var(--zoom, 1)); line-height: 1.6; tab-size: 2;
   background: var(--editor-bg); color: var(--editor-fg);
 }
 

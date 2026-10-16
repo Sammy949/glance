@@ -545,6 +545,29 @@ function toggleReadingWidth() {
   applyReadingWidth();
 }
 
+/* ---------------- text size ---------------- */
+
+const ZOOM_MIN = 0.7, ZOOM_MAX = 2;
+let zoom = store.get('glance.zoom', 1);
+
+function applyZoom() {
+  document.documentElement.style.setProperty('--zoom', String(zoom));
+}
+
+function setZoom(next) {
+  const clamped = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next)) * 10) / 10;
+  if (clamped === zoom) return;
+  // Keep the reader's place: pin the first block at the top of the view.
+  const pin = state.mode === 'read'
+    ? [...els.content.children].find((el) => el.getBoundingClientRect().bottom > 120) : null;
+  const before = pin?.getBoundingClientRect().top;
+  zoom = clamped;
+  store.set('glance.zoom', zoom);
+  applyZoom();
+  if (pin) window.scrollBy({ top: pin.getBoundingClientRect().top - before, left: 0, behavior: 'instant' });
+  flash(`Text size ${Math.round(zoom * 100)}%`);
+}
+
 /* ---------------- scroll memory ---------------- */
 
 const scrollStore = store.get('glance.scroll', {});
@@ -680,6 +703,7 @@ els.btnImages.onclick = () => { state.imagesAllowed = !state.imagesAllowed; upda
 els.btnTheme.onclick = () => { state.theme = toggleTheme(state.theme); };
 els.btnWidth.onclick = toggleReadingWidth;
 applyReadingWidth();
+applyZoom();
 
 /* folder-mode controls */
 els.btnFolder.onclick = openFolder;
@@ -729,6 +753,9 @@ addEventListener('keydown', (e) => {
   else if (k === 'e') { e.preventDefault(); toggleMode(); }
   else if (k === 'f' && state.mode === 'read' && !els.workspace.hidden) { e.preventDefault(); openFind(); }
   else if (k === 'w' && activeTab) { e.preventDefault(); closeTab(activeTab); }
+  else if (k === '=' || k === '+') { e.preventDefault(); setZoom(zoom + 0.1); }
+  else if (k === '-' || k === '_') { e.preventDefault(); setZoom(zoom - 0.1); }
+  else if (k === '0') { e.preventDefault(); setZoom(1); }
   else if (k === 'tab' && tabs.length > 1) {
     e.preventDefault();
     const index = tabs.indexOf(activeTab);
