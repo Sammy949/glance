@@ -270,6 +270,8 @@ body.reading-width:not(.mode-edit) #content {
 
 /* ---------------- heading anchors / in-doc links ---------------- */
 #content :is(h1, h2, h3, h4, h5, h6) { scroll-margin-top: 24px; }
+/* With tabs open, the toolbar + tab bar cover the top 106px. */
+body.has-tabs #content :is(h1, h2, h3, h4, h5, h6) { scroll-margin-top: 122px; }
 .heading-anchor {
   margin-left: .35em; font-weight: 400; text-decoration: none;
   color: var(--ui-muted); opacity: 0; transition: opacity .12s ease;
