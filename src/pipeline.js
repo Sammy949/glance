@@ -70,6 +70,7 @@ export async function createRenderer() {
   }
 
   const highlight = (str, lang) => {
+    if (lang === 'mermaid') return ''; // left as source for diagrams.js
     if (hljs) {
       try {
         if (lang && hljs.getLanguage(lang)) return hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;

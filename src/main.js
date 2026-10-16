@@ -8,6 +8,7 @@ import { isTauri, initNativeLaunch, watchFile, pickNativeDocument, saveNativeDoc
 import * as find from './find.js';
 import * as folder from './folder.js';
 import * as outline from './outline.js';
+import { renderDiagrams, hasDiagrams } from './diagrams.js';
 import { decodeText, encodeText, readFileText } from './text.js';
 
 const els = {
@@ -196,7 +197,12 @@ async function renderPreview() {
   els.btnImages.hidden = !foundRemote;
   updateImagesButton();
   await resolveRelativeAssets(tab, version);
-  if (version === renderVersion && tab === activeTab) find.setContainer(els.content);
+  const isCurrent = () => version === renderVersion && tab === activeTab;
+  await renderDiagrams(els.content, { theme: state.theme, isCurrent });
+  if (isCurrent()) {
+    outline.spy();
+    find.setContainer(els.content);
+  }
 }
 
 /* ---------------- folder mode: relative assets ---------------- */
@@ -799,7 +805,14 @@ els.btnNew2.onclick = newDoc;
 els.btnSave.onclick = save;
 els.btnEdit.onclick = toggleMode;
 els.btnImages.onclick = () => { state.imagesAllowed = !state.imagesAllowed; updateImages(); };
-els.btnTheme.onclick = () => { state.theme = toggleTheme(state.theme); };
+els.btnTheme.onclick = () => {
+  state.theme = toggleTheme(state.theme);
+  // Diagrams are drawn for one theme; redraw them for the other.
+  if (!els.workspace.hidden && hasDiagrams(els.content)) {
+    const y = window.scrollY;
+    renderPreview().then(() => window.scrollTo({ top: y, left: 0, behavior: 'instant' }));
+  }
+};
 els.btnWidth.onclick = toggleReadingWidth;
 els.btnOutline.onclick = toggleOutline;
 applyReadingWidth();
@@ -876,8 +889,16 @@ addEventListener('drop', async (e) => {
 });
 
 /* print: the rendered document only, always on light paper */
-addEventListener('beforeprint', () => { if (state.theme === 'dark') applyTheme('light', { persist: false }); });
-addEventListener('afterprint', () => { if (state.theme === 'dark') applyTheme('dark', { persist: false }); });
+addEventListener('beforeprint', () => {
+  if (state.theme !== 'dark') return;
+  applyTheme('light', { persist: false });
+  document.body.classList.add('print-from-dark'); // diagrams were drawn for dark
+});
+addEventListener('afterprint', () => {
+  if (state.theme !== 'dark') return;
+  applyTheme('dark', { persist: false });
+  document.body.classList.remove('print-from-dark');
+});
 
 /* warn on unsaved changes */
 addEventListener('beforeunload', (e) => {

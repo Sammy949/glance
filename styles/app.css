@@ -306,6 +306,15 @@ body.theme-dark {
 .markdown-alert-title svg { width: 1em; height: 1em; flex: none; }
 #content .markdown-alert > :last-child { margin-bottom: 0; }
 
+/* ---------------- mermaid diagrams ---------------- */
+#content .mermaid-diagram { margin: 16px 0; overflow-x: auto; text-align: center; }
+#content .mermaid-diagram svg { max-width: 100%; height: auto; }
+#content pre.mermaid-error::after {
+  content: "Diagram error: " attr(data-error);
+  display: block; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--alert-caution); white-space: normal;
+}
+
 /* ---------------- smoothing ---------------- */
 html { scroll-behavior: smooth; }
 
@@ -438,4 +447,6 @@ body.theme-dark #file-tree .tree-file.active { color: var(--interactive-ink); }
   #content :is(h1, h2, h3, h4, h5, h6) { break-after: avoid; }
   #content :is(pre, blockquote, table, img, .katex-display) { break-inside: avoid; }
   #content pre, #content pre code { white-space: pre-wrap; overflow: visible; }
+  #content .mermaid-diagram { break-inside: avoid; }
+  body.print-from-dark .mermaid-diagram svg { filter: invert(1) hue-rotate(180deg); }
 }
