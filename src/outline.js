@@ -65,6 +65,14 @@ export function spy() {
     if (headings[mid].getBoundingClientRect().top <= READ_LINE) { index = mid; lo = mid + 1; }
     else hi = mid - 1;
   }
+  // At the very bottom, short final sections can never reach the reading
+  // line; mark the last heading that is on screen instead.
+  const root = document.documentElement;
+  if (Math.ceil(window.scrollY + window.innerHeight) >= root.scrollHeight - 2) {
+    for (let i = headings.length - 1; i > index; i--) {
+      if (headings[i].getBoundingClientRect().top < window.innerHeight) { index = i; break; }
+    }
+  }
   if (index === current) return;
   links[current]?.classList.remove('current');
   links[current]?.removeAttribute('aria-current');
