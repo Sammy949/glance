@@ -18,12 +18,12 @@ const HLJS = {
   dark: 'vendor/hljs-github-dark.min.css',
 };
 
-export function applyTheme(name) {
+export function applyTheme(name, { persist = true } = {}) {
   styleEl.textContent = THEME[name] || THEME.light;
   if (hljsLink) hljsLink.href = HLJS[name] || HLJS.light;
   document.body.classList.toggle('theme-dark', name === 'dark');
   document.body.classList.toggle('theme-light', name !== 'dark');
-  try { localStorage.setItem('glance.theme', name); } catch {}
+  if (persist) try { localStorage.setItem('glance.theme', name); } catch {}
 }
 
 export function initTheme() {

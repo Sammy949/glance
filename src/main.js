@@ -1,7 +1,7 @@
 /* main.js — glance orchestrator: state, rendering, edit mode, files, PWA glue. */
 
 import { createRenderer } from './pipeline.js';
-import { initTheme, toggleTheme } from './theme.js';
+import { initTheme, toggleTheme, applyTheme } from './theme.js';
 import { pickFile, saveFile, fromDrop, fromHandle } from './files.js';
 import { ICONS } from './icons.js';
 import { isTauri, initNativeLaunch, watchFile, pickNativeDocument, saveNativeDocument } from './platform.js';
@@ -756,6 +756,7 @@ addEventListener('keydown', (e) => {
   else if (k === '=' || k === '+') { e.preventDefault(); setZoom(zoom + 0.1); }
   else if (k === '-' || k === '_') { e.preventDefault(); setZoom(zoom - 0.1); }
   else if (k === '0') { e.preventDefault(); setZoom(1); }
+  else if (k === 'p' && !els.workspace.hidden) { e.preventDefault(); window.print(); }
   else if (k === 'tab' && tabs.length > 1) {
     e.preventDefault();
     const index = tabs.indexOf(activeTab);
@@ -772,6 +773,10 @@ addEventListener('drop', async (e) => {
   const docs = await fromDrop(e.dataTransfer);
   for (const doc of docs) await loadDoc(doc);
 });
+
+/* print: the rendered document only, always on light paper */
+addEventListener('beforeprint', () => { if (state.theme === 'dark') applyTheme('light', { persist: false }); });
+addEventListener('afterprint', () => { if (state.theme === 'dark') applyTheme('dark', { persist: false }); });
 
 /* warn on unsaved changes */
 addEventListener('beforeunload', (e) => {

@@ -392,3 +392,19 @@ body.theme-dark #file-tree .tree-file.active { color: var(--interactive-ink); }
 @media (max-width: 360px) {
   #app-mark, body.has-sidebar #btn-folder { display: none; }
 }
+
+/* ---------------- print ----------------
+ * Only the rendered document reaches paper; theme.js swaps to light first. */
+@media print {
+  #app-header, #document-bar, #sidebar, #findbar, #toast, #drop-hint, #empty,
+  #editor, .copy-btn, .heading-anchor { display: none !important; }
+  body.has-sidebar #workspace { margin-left: 0; }
+  #workspace, body.mode-edit #workspace { display: block; height: auto; min-height: 0; }
+  #content, body.mode-edit #content, body.has-tabs #content {
+    display: block !important; height: auto; overflow: visible;
+    max-width: none; margin: 0; padding: 0 !important;
+  }
+  #content :is(h1, h2, h3, h4, h5, h6) { break-after: avoid; }
+  #content :is(pre, blockquote, table, img, .katex-display) { break-inside: avoid; }
+  #content pre, #content pre code { white-space: pre-wrap; overflow: visible; }
+}
