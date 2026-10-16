@@ -255,7 +255,7 @@ body.dragging #drop-hint { display: flex; }
 #content pre:hover .copy-btn, .copy-btn:focus-visible { opacity: 1; }
 .copy-btn:hover { background: var(--hover); }
 .copy-btn svg { width: 15px; height: 15px; }
-.copy-btn.copied { color: #2ea043; opacity: 1; }
+.copy-btn.copied { color: var(--success); opacity: 1; }
 
 /* ---------------- reading width ---------------- */
 body.reading-width:not(.mode-edit) #content {
