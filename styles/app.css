@@ -70,7 +70,7 @@ body.theme-dark {
 }
 body.theme-dark { --interactive-ink: #82baf0; --focus-ring: #82baf0; }
 html:has(body.theme-dark) { --scroll-thumb: #333; --scroll-thumb-hover: #8b8b8b; }
-@media (max-width: 720px) { :root { --sidebar-w: 216px; } }
+
 
 html, body { min-height: 100%; }
 
@@ -382,7 +382,7 @@ body.has-outline.outline-docked #workspace { margin-right: var(--outline-w); }
 #outline a.current { color: var(--interactive-ink); font-weight: 600; }
 #outline a:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 /* Not docked: the outline slides over the text instead of squeezing it. */
-body:not(.outline-docked) #outline { width: min(280px, 85vw); }
+body:not(.outline-docked) #outline { width: var(--outline-w); }
 
 /* ---------------- folder mode: sidebar + tree ---------------- */
 #sidebar {
@@ -499,3 +499,14 @@ body.theme-dark #file-tree .tree-file.active { color: var(--interactive-ink); }
 .context-menu [role="separator"] { height: 1px; margin: 5px 8px; background: var(--border); }
 .context-menu .context-hint { margin: 6px 8px; color: var(--text-muted); font-size: 11px; }
 @media print { .context-menu { display: none !important; } }
+
+.panel-resize { display: none; position: fixed; width: 7px; bottom: 0; z-index: 960; cursor: col-resize; touch-action: none; }
+.sidebar-resize { top: 64px; left: calc(var(--sidebar-w) - 3px); }
+.outline-resize { top: 106px; right: calc(var(--outline-w) - 3px); }
+body.has-sidebar .sidebar-resize, body.has-outline .outline-resize { display: block; }
+.panel-resize::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; }
+.panel-resize:hover::after, .panel-resize:focus-visible::after { background: var(--border-strong); }
+.panel-resize:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+body.resizing, body.resizing * { cursor: col-resize !important; user-select: none !important; }
+@media (max-width: 600px) { #sidebar { max-width: calc(100vw - 24px); } .sidebar-resize { left: calc(min(var(--sidebar-w), 100vw - 24px) - 3px); } }
+@media print { .panel-resize { display: none !important; } }

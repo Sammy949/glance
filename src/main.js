@@ -1,5 +1,6 @@
 /* main.js — glance orchestrator: state, rendering, edit mode, files, PWA glue. */
 
+import { resizePanel } from './panels.js';
 import { createMenu } from './menu.js';
 import { createRenderer } from './pipeline.js';
 import { initTheme, toggleTheme, applyTheme } from './theme.js';
@@ -673,11 +674,11 @@ function toggleReadingWidth() {
 /* Docked beside the text when the text keeps room for a full reading column
  * (choice remembered); otherwise it slides over the text and closes once a
  * heading is picked. The desktop window opens at 1000px, which docks. */
-const DOCK_MIN = 900; // px left for text + outline, after any folder sidebar
 const canDock = () => {
   const sidebar = document.body.classList.contains('has-sidebar') && matchMedia('(min-width: 601px)').matches
     ? els.sidebar.getBoundingClientRect().width : 0;
-  return window.innerWidth - sidebar >= DOCK_MIN;
+  const width = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--outline-w')) || 232;
+  return window.innerWidth - sidebar - width >= 600;
 };
 let outlineDocked = null;
 let outlineCount = 0;
@@ -713,6 +714,11 @@ let resizeFrame = 0;
 addEventListener('resize', () => {
   if (!resizeFrame) resizeFrame = requestAnimationFrame(() => { resizeFrame = 0; updateOutline(); });
 });
+
+resizePanel({ panel: els.sidebar, side: 'right', min: 200, max: 420, initial: 264,
+  property: '--sidebar-w', key: 'glance.sidebarWidth', onResize: updateOutline });
+resizePanel({ panel: els.outline, side: 'left', min: 180, max: 360, initial: 232,
+  property: '--outline-w', key: 'glance.outlineWidth', onResize: updateOutline });
 
 /* ---------------- text size ---------------- */
 

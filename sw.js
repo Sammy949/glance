@@ -12,6 +12,7 @@ const SHELL = [
   './styles/app.css',
   './src/main.js',
   './src/menu.js',
+  './src/panels.js',
   './src/pipeline.js',
   './src/theme.js',
   './src/files.js',
