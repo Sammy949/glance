@@ -445,6 +445,7 @@ async function useFolder(dir) {
   document.body.classList.add('has-sidebar');
   els.sidebar.hidden = false;
   els.btnSidebar.hidden = false;
+  updateOutline();
 
   syncTreeActive();
   const firstBtn = els.fileTree.querySelector('.tree-file');
@@ -554,7 +555,7 @@ els.fileTree.addEventListener('keydown', (e) => {
   if (target._node) flipTo(target._node);
 });
 
-function toggleSidebar() { document.body.classList.toggle('has-sidebar'); }
+function toggleSidebar() { document.body.classList.toggle('has-sidebar'); updateOutline(); }
 
 function closeFolder() {
   document.body.classList.remove('has-sidebar');
@@ -562,6 +563,7 @@ function closeFolder() {
   els.btnSidebar.hidden = true;
   state.root = null;
   folder.saveHandle('lastDir', null);
+  updateOutline();
 }
 
 function newDoc() {
@@ -618,16 +620,26 @@ function toggleReadingWidth() {
 
 /* ---------------- outline ---------------- */
 
-/* Docked beside the text on wide windows (remembered); on narrow ones it
- * slides over the text and closes once a heading is picked. */
-const wideQuery = matchMedia('(min-width: 1001px)');
+/* Docked beside the text when the text keeps room for a full reading column
+ * (choice remembered); otherwise it slides over the text and closes once a
+ * heading is picked. The desktop window opens at 1000px, which docks. */
+const DOCK_MIN = 900; // px left for text + outline, after any folder sidebar
+const canDock = () => {
+  const sidebar = document.body.classList.contains('has-sidebar') && matchMedia('(min-width: 601px)').matches
+    ? els.sidebar.getBoundingClientRect().width : 0;
+  return window.innerWidth - sidebar >= DOCK_MIN;
+};
+let outlineDocked = null;
 let outlineCount = 0;
 let outlinePinned = store.get('glance.outline', true);
 let outlineOverlay = false;
 
 function updateOutline() {
+  const docked = canDock();
+  if (docked !== outlineDocked) { outlineDocked = docked; outlineOverlay = false; }
   const available = !els.workspace.hidden && state.mode === 'read' && outlineCount >= 2;
-  const show = available && (wideQuery.matches ? outlinePinned : outlineOverlay);
+  const show = available && (docked ? outlinePinned : outlineOverlay);
+  document.body.classList.toggle('outline-docked', docked);
   els.btnOutline.hidden = !available;
   els.btnOutline.setAttribute('aria-pressed', String(show));
   els.outline.hidden = !show;
@@ -637,7 +649,7 @@ function updateOutline() {
 
 function toggleOutline() {
   if (els.btnOutline.hidden) return;
-  if (wideQuery.matches) {
+  if (outlineDocked) {
     outlinePinned = !outlinePinned;
     store.set('glance.outline', outlinePinned);
   } else outlineOverlay = !outlineOverlay;
@@ -645,9 +657,12 @@ function toggleOutline() {
 }
 
 outline.init(els.outline, () => {
-  if (!wideQuery.matches && outlineOverlay) { outlineOverlay = false; updateOutline(); }
+  if (!outlineDocked && outlineOverlay) { outlineOverlay = false; updateOutline(); }
 });
-wideQuery.addEventListener('change', () => { outlineOverlay = false; updateOutline(); });
+let resizeFrame = 0;
+addEventListener('resize', () => {
+  if (!resizeFrame) resizeFrame = requestAnimationFrame(() => { resizeFrame = 0; updateOutline(); });
+});
 
 /* ---------------- text size ---------------- */
 

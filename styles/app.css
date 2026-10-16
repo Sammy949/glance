@@ -347,7 +347,7 @@ html { scroll-behavior: smooth; }
   font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent;
 }
-body.has-outline #workspace { margin-right: var(--outline-w); }
+body.has-outline.outline-docked #workspace { margin-right: var(--outline-w); }
 #outline ol { list-style: none; margin: 0; padding: 0; }
 #outline a {
   display: block; padding: 5px 8px 5px calc(8px + var(--depth, 0) * 13px);
@@ -358,11 +358,8 @@ body.has-outline #workspace { margin-right: var(--outline-w); }
 #outline a:hover { color: var(--ui-fg); background: rgba(128, 128, 128, .12); }
 #outline a.current { color: var(--interactive-ink); font-weight: 600; }
 #outline a:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-@media (max-width: 1000px) {
-  /* Narrow: the outline slides over the text instead of squeezing it. */
-  body.has-outline #workspace { margin-right: 0; }
-  #outline { width: min(280px, 85vw); }
-}
+/* Not docked: the outline slides over the text instead of squeezing it. */
+body:not(.outline-docked) #outline { width: min(280px, 85vw); }
 
 /* ---------------- folder mode: sidebar + tree ---------------- */
 #sidebar {
