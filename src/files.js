@@ -2,6 +2,8 @@
  * with graceful fallbacks for browsers/contexts where it's unavailable.
  * A "doc" is { name, text, handle }, where handle may be null (no write-back). */
 
+import { readFileText } from './text.js';
+
 const MD_ACCEPT = {
   description: 'Markdown',
   accept: { 'text/markdown': ['.md', '.markdown', '.mdown', '.mkd'], 'text/plain': ['.txt'] },
@@ -9,7 +11,7 @@ const MD_ACCEPT = {
 
 async function handleToDoc(handle) {
   const file = await handle.getFile();
-  return { name: file.name, text: await file.text(), handle };
+  return { name: file.name, text: await readFileText(file), handle };
 }
 
 /** Open a file the user picks. Returns a doc, or null if cancelled. */
@@ -30,7 +32,7 @@ export async function pickFile() {
     });
     input.onchange = async () => {
       const f = input.files[0];
-      resolve(f ? { name: f.name, text: await f.text(), handle: null } : null);
+      resolve(f ? { name: f.name, text: await readFileText(f), handle: null } : null);
     };
     input.oncancel = () => resolve(null);
     input.click();
@@ -55,7 +57,7 @@ export async function fromDrop(dataTransfer) {
     docs.length = 0;
   }
   for (const file of dataTransfer.files || []) {
-    docs.push({ name: file.name, text: await file.text(), handle: null });
+    docs.push({ name: file.name, text: await readFileText(file), handle: null });
   }
   return docs;
 }

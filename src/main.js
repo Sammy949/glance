@@ -7,6 +7,7 @@ import { ICONS } from './icons.js';
 import { isTauri, initNativeLaunch, watchFile, pickNativeDocument, saveNativeDocument } from './platform.js';
 import * as find from './find.js';
 import * as folder from './folder.js';
+import { decodeText, encodeText, readFileText } from './text.js';
 
 const els = {
   content: document.getElementById('content'),
@@ -56,6 +57,8 @@ const state = {
   docRoot: null,       // directory associated with this document
   relDir: null,        // current file's dir segments from root (null = not in folder)
   path: null,
+  eol: '\n',           // the file's own line ending, restored on save
+  bom: false,          // whether the file started with a UTF-8 BOM
 };
 
 const tabs = [];
@@ -64,7 +67,7 @@ let nextTabId = 1;
 
 function rememberActive() {
   if (!activeTab) return;
-  for (const key of ['name', 'key', 'text', 'savedText', 'handle', 'mode', 'imagesAllowed', 'dirty', 'docRoot', 'relDir', 'path']) {
+  for (const key of ['name', 'key', 'text', 'savedText', 'handle', 'mode', 'imagesAllowed', 'dirty', 'docRoot', 'relDir', 'path', 'eol', 'bom']) {
     activeTab[key] = state[key];
   }
   activeTab.scrollY = window.scrollY;
@@ -73,7 +76,7 @@ function rememberActive() {
 }
 
 function restoreActive(tab) {
-  for (const key of ['name', 'key', 'text', 'savedText', 'handle', 'mode', 'imagesAllowed', 'dirty', 'docRoot', 'relDir', 'path']) {
+  for (const key of ['name', 'key', 'text', 'savedText', 'handle', 'mode', 'imagesAllowed', 'dirty', 'docRoot', 'relDir', 'path', 'eol', 'bom']) {
     state[key] = tab[key];
   }
 }
@@ -275,10 +278,11 @@ function updateImagesButton() {
 async function loadDoc(doc) {
   const existing = await matchingTab(doc);
   if (existing) { await activateTab(existing); return; }
+  const { text, eol, bom } = decodeText(doc.text || '');
   const tab = {
     id: nextTabId++, name: doc.name || 'untitled.md',
     key: doc.path || doc.key || doc.name || null,
-    path: doc.path || null, text: doc.text || '', savedText: doc.text || '', handle: doc.handle || null,
+    path: doc.path || null, text, savedText: text, eol, bom, handle: doc.handle || null,
     mode: doc.mode || 'read', imagesAllowed: false, dirty: false,
     docRoot: doc.docRoot || null, relDir: doc.relDir ?? null,
     scrollY: doc.key ? scrollStore[doc.key] || 0 : 0, previewY: 0, editorY: 0,
@@ -361,7 +365,7 @@ function startWatch(doc) {
     doc.handle.getFile().then(async (f) => {
       if (activeTab !== doc) return;
       lastMod = f.lastModified;
-      externalUpdate(await f.text());
+      externalUpdate(await readFileText(f));
     }).catch(() => {});
     pollTimer = setInterval(pollHandle, 1500);
   }
@@ -371,20 +375,19 @@ async function pollHandle() {
   if (document.hidden || !state.handle || !state.handle.getFile) return;
   try {
     const f = await state.handle.getFile();
-    if (f.lastModified > lastMod) { lastMod = f.lastModified; externalUpdate(await f.text()); }
+    if (f.lastModified > lastMod) { lastMod = f.lastModified; externalUpdate(await readFileText(f)); }
   } catch { /* file moved/removed — ignore */ }
 }
 
 /* Apply an on-disk change to the current doc, preserving scroll. Never clobbers
  * unsaved edits. */
-function externalUpdate(text) {
-  if (text === state.text) return;
+function externalUpdate(raw) {
+  const { text, eol, bom } = decodeText(raw);
+  if (text === state.text && eol === state.eol && bom === state.bom) return;
   if (state.dirty) { flash('File changed on disk — unsaved edits kept'); return; }
   const y = window.scrollY;
-  state.text = text;
-  state.savedText = text;
-  if (activeTab) activeTab.text = text;
-  if (activeTab) activeTab.savedText = text;
+  Object.assign(state, { text, savedText: text, eol, bom });
+  if (activeTab) Object.assign(activeTab, { text, savedText: text, eol, bom });
   els.editor.value = text;
   renderPreview().then(() => window.scrollTo({ top: y, left: 0, behavior: 'instant' }));
 }
@@ -466,7 +469,7 @@ function buildTreeDom(node) {
 async function selectTreeFile(node) {
   try {
     const file = await node.handle.getFile();
-    await loadDoc({ name: file.name, text: await file.text(), handle: node.handle,
+    await loadDoc({ name: file.name, text: await readFileText(file), handle: node.handle,
       docRoot: state.root, relDir: node.parentPath,
       key: `${state.root.name}/${[...node.parentPath, file.name].join('/')}` });
     if (matchMedia('(max-width: 600px)').matches) document.body.classList.remove('has-sidebar');
@@ -612,9 +615,10 @@ async function save() {
   try {
     const savingTab = activeTab;
     const text = state.text;
+    const bytes = encodeText(text, { eol: savingTab.eol, bom: savingTab.bom });
     const result = isTauri()
-      ? await saveNativeDocument({ path: state.path, text, name: state.name })
-      : await saveFile({ handle: state.handle, text, name: state.name });
+      ? await saveNativeDocument({ path: state.path, text: bytes, name: state.name })
+      : await saveFile({ handle: state.handle, text: bytes, name: state.name });
     if (isTauri() && !result) return;
     if (isTauri()) {
       savingTab.path = result.path;
@@ -700,7 +704,7 @@ els.content.addEventListener('click', async (e) => {
   if (!res) { flash('Linked file not found'); return; }
   try {
     const file = await res.fileHandle.getFile();
-    await loadDoc({ name: file.name, text: await file.text(), handle: res.fileHandle,
+    await loadDoc({ name: file.name, text: await readFileText(file), handle: res.fileHandle,
       docRoot: state.docRoot, relDir: segs.slice(0, -1),
       key: `${state.docRoot.name}/${segs.join('/')}` });
   } catch { flash('Could not open linked file'); }
@@ -760,7 +764,8 @@ if ('launchQueue' in window && 'setConsumer' in window.launchQueue) {
 const qFile = new URLSearchParams(location.search).get('file');
 if (qFile) {
   fetch(qFile)
-    .then((r) => (r.ok ? r.text() : Promise.reject(new Error('fetch failed'))))
+    .then((r) => (r.ok ? r.blob() : Promise.reject(new Error('fetch failed'))))
+    .then(readFileText)
     .then((text) => loadDoc({ name: qFile.split('/').pop(), text, handle: null }))
     .catch(() => {});
 }
