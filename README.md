@@ -1,225 +1,83 @@
----
-title: glance
-tagline: fast, fluid markdown — view & quick-edit
-note: this frontmatter block is intentionally hidden when rendered
----
+<img src="icons/icon-192.png" width="96" alt="glance icon: a small face peeking in from the corner">
 
-# glance :eyes:
+# glance
 
-A fast, fluid markdown **viewer & quick editor** for the browser — installable as
-an app. A faithful port of the [PowerToys Peek](https://learn.microsoft.com/en-us/windows/powertoys/peek)
-markdown renderer to the web, then pushed further.
+I work with a lot of `.md` files, and opening them was always a bit annoying. An editor felt like too much just to read something, and a browser shows you raw text.
 
-> Pipeline mirrors PowerToys' `MarkdownHelper.cs` (Markdig); the light/dark theme
-> CSS is lifted verbatim from that file (MIT © Microsoft). Markdig → `markdown-it`,
-> WebView2 → your browser. See [`LICENSE`](LICENSE) for attribution.
+The one viewer I actually liked was the markdown preview in PowerToys Peek. Select a file, press a shortcut, and it's there, rendered properly. But it only works from File Explorer, and it closes the moment you click away.
 
-## Run it
+So I pulled that previewer out into its own app, then kept going.
 
-No build step, no install, no CDN. Serve the folder and open it:
+**Double-click a `.md` file and it opens rendered, in a window that stays.** Tabs, an outline, live reload, and a quick editor for when you need to change a line.
 
-```bash
-python3 -m http.server 8123
-# then open http://localhost:8123/?file=README.md
-```
+> Early days: I use it every day on Windows. The Mac and Linux builds come out of the same release, but I haven't tried them myself yet. Issues and feedback are very welcome.
 
-(A local server is required — ES modules and the service worker don't run from
-`file://`.) To bump dependency versions, edit and re-run `node scripts/vendor.mjs`.
+## What it does
 
-## Install as an app
+- **Reads markdown properly.** GitHub-style tables and task lists, footnotes, emoji, math, syntax-highlighted code with a copy button, GitHub alerts (`> [!NOTE]`) and Mermaid diagrams. Frontmatter stays hidden.
+- **Outline** beside the text, with the section you're reading marked. Click a heading to jump there.
+- **Tabs.** Opening a file that's already open just switches to it.
+- **Live reload.** When something else changes the file (your editor, a script, a coding agent), glance updates in place and keeps your scroll position.
+- **Quick edits.** A plain editor next to the preview, saving back to the same file. Line endings and BOM stay exactly as they were.
+- **Folders.** Open one for a file tree of its markdown. Relative images and links between notes work, and the arrow keys flip through files without piling up tabs.
+- Find, text size, a narrower reading column, light and dark, and printing that gives you just the document.
 
-Open it in Chrome/Edge → **Install** from the address bar. Once installed you get:
+| Keys | |
+| --- | --- |
+| `Ctrl+O` | Open a file |
+| `Ctrl+E` | Edit / preview |
+| `Ctrl+S` | Save |
+| `Ctrl+F` | Find |
+| `Ctrl+Shift+O` | Outline |
+| `Ctrl+=` `Ctrl+-` `Ctrl+0` | Text size |
+| `Ctrl+P` | Print |
+| `Ctrl+Tab` `Ctrl+W` | Next tab, close tab |
 
-- its own window (no browser chrome),
-- offline use (the service worker caches the app and vendored dependencies),
-- **double-click a `.md` to open it in glance** (File Handling API).
+## Install
 
-## Desktop app (Tauri)
+**[Download from the latest release](https://github.com/Sammy949/glance/releases/latest)**. On Windows that's `glance_<version>_x64-setup.exe`, about 4 MB. It installs just for you, so no admin prompt, and registers itself for `.md` files so you can make it the default from *Open with*.
 
-The same web core is wrapped by a Tauri v2 shell in [`src-tauri/`](src-tauri/) for a
-native, low-footprint desktop app with **OS file association** — double-click a
-`.md` in Explorer/Finder and it opens in glance. Tauri uses the system webview
-(WebView2 on Windows — the same engine PowerToys Peek uses), so the binary is a
-few MB and idle RAM stays low.
+It's small because it uses the WebView2 that already comes with Windows instead of shipping its own browser.
 
-**One-time toolchain** (do this on the OS you're shipping for — Windows for the
-`.md` association):
+Windows will probably say **"Windows protected your PC"** first. glance isn't code-signed yet, and SmartScreen is cautious about new apps. Click **More info**, then **Run anyway**. If you'd rather build it yourself, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-```bash
-# 1. Rust: https://rustup.rs
-# 2. Tauri CLI (cargo subcommand):
-cargo install tauri-cli --version "^2"
-# 3. (recommended) full icon set incl. .ico/.icns:
-cargo tauri icon icons/icon-512.png
-```
+To remove it: Settings → Apps → glance → Uninstall.
 
-**Run / build** (from the repo root — the before-hooks resolve paths from there):
+The same release has a `.dmg` for Apple silicon Macs and `.deb`, `.rpm` and `.AppImage` for Linux. They aren't signed either, so macOS will likely refuse to open the app the first time.
 
-```bash
-cargo tauri dev      # live desktop window
-cargo tauri build    # installers in src-tauri/target/release/bundle/
-```
+### In a browser
 
-**Releasing** — after the version in `src-tauri/tauri.conf.json` and
-`src-tauri/Cargo.toml` is updated, merged, and checked on `main`:
+glance also runs as a web app in Chrome or Edge, works offline, and can be installed from the address bar. Each release includes `glance-web-<version>.tar.gz` for any static host. Opening folders and saving back to the same file need a Chromium browser. Elsewhere you can still read files and download an edited copy.
 
-```bash
-node scripts/check-release.mjs v0.4.2
-git tag v0.4.2 && git push origin v0.4.2
-```
+## Privacy
 
-The `release` workflow checks that the tag matches both package versions and
-points to a commit on `main`. It then builds Windows (`.msi`/`.exe`), macOS
-(`.dmg`) and Linux (`.deb`/`.AppImage`) installers on native runners and attaches
-them to a **draft** GitHub Release. A tarball of the static web app is attached after
-the desktop builds. Review and publish the release from the Releases page.
+- No account, no telemetry, no analytics.
+- glance makes no network requests of its own. Remote images in a document stay blocked until you load them for that document.
+- Files are read and saved where they are. Settings like theme and text size stay on your machine.
 
-The frontend is copied into `src-tauri/frontend/` automatically by
-`build-web.mjs` (wired as Tauri's before-dev/build hook). Launched files are
-read in Rust and handed to the frontend via `get_launch_files`; a second launch
-is forwarded by the single-instance plugin (`open-files` event).
+## Why it looks like Peek
 
-> All runtime deps are vendored in [`vendor/`](vendor/) (pinned by
-> `scripts/vendor.mjs`) — the app makes **zero CDN requests**, starts instantly,
-> and works fully offline, in the browser and on desktop.
+The renderer is a port of PowerToys Peek's markdown preview. Peek runs Markdig with a particular set of extensions and about 2 KB of CSS inside WebView2. glance maps the same extensions onto markdown-it and uses that CSS, so a file looks the same in both. Everything after that (tabs, editing, folders, the outline, diagrams) is new.
 
-## Use
+## Before v0.4
 
-- **Open** a file, or drag-and-drop one anywhere. `Ctrl+O`.
-- **Tabs** keep several documents open. Opening the same file focuses its tab;
-  dropping several files opens them all. `Ctrl+Tab` switches tabs and `Ctrl+W`
-  closes the active tab. A dot marks changed text; hover or focus it to reveal
-  Close. Closing a changed tab asks before discarding edits.
-- **Edit** toggles a side-by-side editor with live preview. `Ctrl+E`.
-- **Save** writes back to the same file through a browser file handle or Tauri's
-  native file path. The toolbar action appears when the active file changes;
-  `Ctrl+S` also works. New files prompt for a location. Browsers without the File
-  System Access API download a copy and keep the document marked unsaved.
-- **Find** in the document with `Ctrl+F` (`Enter` / `Shift+Enter` to step, `Esc` to close).
-- **Outline** lists the headings beside the text and marks the section you're
-  reading; click one to jump there. Toolbar button or `Ctrl+Shift+O`.
-- **Text size**: `Ctrl+=` / `Ctrl+-` scale the document and editor text, `Ctrl+0`
-  resets (remembers your choice).
-- **Print** (`Ctrl+P`, or Save as PDF) gives just the rendered document, on light paper.
-- **Reading width** toggles a centered ~74ch column (remembers your choice).
-- On narrow windows, Edit uses the full screen; `Ctrl+E` returns to Preview.
-- **Theme** toggles light/dark (remembers your choice); code blocks are syntax-highlighted.
-- **Remote images** are blocked by default; load them per-doc with one click.
-- Scroll position is remembered per file.
-- **Live-reload**: edit a file in another editor and glance updates in place, keeping your scroll.
-- Saving keeps the file's own line endings (CRLF or LF) and any UTF-8 BOM.
+I went through what people ask for and complain about in markdown viewers: GitHub issues for PowerToys, Typora, MarkText, glow, Zed and VS Code, and recent Show HN threads. Mermaid was the top request almost everywhere, followed by an outline for long documents. The complaints were mostly about apps changing files they'd only opened, freezing on big files, and bloat.
 
-### Folder mode
+So v0.4 added Mermaid, the outline, GitHub alerts, text size and printing, and fixed a bug where saving turned Windows line endings into Unix ones. Big files are still slow (a 5 MB document takes about 20 seconds), so that's next. The details are in [docs/research.md](docs/research.md).
 
-Click the **folder** icon (or "Open folder" on the empty screen) to open a directory:
+## Docs
 
-- a sidebar **file tree** of every markdown file (folders collapsible); click to
-  open or focus a tab. On narrow screens it overlays the reader and closes after
-  you choose a file.
-- **relative images** (`![](assets/pic.png)`) resolve from disk, including `../` up-paths.
-- **relative `.md` links** (`[see](notes/other.md)`, `[back](../index.md)`) open in-app.
-- **arrow keys** walk the tree and open each file as you land on it, in a single
-  italic preview tab that the next file replaces. Editing it, opening it with a
-  click or `Enter`, or double-clicking the tab keeps it.
-- the panel button toggles the sidebar; the folder is remembered (re-grant on next visit).
+- [docs/research.md](docs/research.md): what people asked for and complained about, and what that changed
+- [CONTRIBUTING.md](CONTRIBUTING.md): running it locally, desktop builds, releases, and the house rules
+- [CONTEXT.md](CONTEXT.md): every decision so far and why
+- [sample/showcase.md](sample/showcase.md): everything glance renders, in one file
 
-Try it on the included [`sample/`](sample/) vault. *(Chromium-only — uses the File
-System Access API.)*
+## Credits
 
-## Feature check
+The rendering recipe and theme come from [PowerToys](https://github.com/microsoft/PowerToys) (MIT). glance is built on [markdown-it](https://github.com/markdown-it/markdown-it) and its plugins, [DOMPurify](https://github.com/cure53/DOMPurify), [highlight.js](https://github.com/highlightjs/highlight.js), [KaTeX](https://github.com/KaTeX/KaTeX), [Mermaid](https://github.com/mermaid-js/mermaid) and [Lucide](https://github.com/lucide-icons/lucide) icons, all vendored so nothing loads from a CDN. The desktop app is [Tauri](https://github.com/tauri-apps/tauri). See [LICENSE](LICENSE).
 
-| Feature | PowerToys recipe | Status |
-| --- | --- | :---: |
-| GFM tables | `UseAdvancedExtensions` | ✅ |
-| Task lists | GFM | ✅ |
-| Footnotes / deflists | advanced ext | ✅ |
-| Emoji | `UseEmojiAndSmiley` | ✅ |
-| Math | `UseMathematics` | ✅ |
-| Frontmatter hidden | `UseYamlFrontMatter` | ✅ |
-| Soft break = line break | `SoftlineBreakAsHardline` | ✅ |
-| Remote images blocked | Peek privacy default | ✅ |
-| Edit + save-back | (beyond Peek) | ✅ |
-| Installable / offline | (beyond Peek) | ✅ |
-| Syntax highlighting + copy button | (beyond Peek) | ✅ |
-| GitHub alerts (`> [!NOTE]`) | (beyond Peek) | ✅ |
-| Mermaid diagrams (loaded on demand) | (beyond Peek) | ✅ |
-| Outline with current section | (beyond Peek) | ✅ |
-| Reading-width toggle | (beyond Peek) | ✅ |
-| In-doc find (`Ctrl+F`) | (beyond Peek) | ✅ |
-| Scroll-position memory | (beyond Peek) | ✅ |
-| Live-reload on external edit | (beyond Peek) | ✅ |
-| Folder mode: tree + relative images/links | (beyond Peek) | ✅ |
-| Tabs | (beyond Peek) | ✅ |
-| Text size, print | (beyond Peek) | ✅ |
-
-### Demo bits
-
-- [x] Port the Markdig pipeline
-- [x] Lift the PowerToys light/dark CSS
-- [x] Edit mode with live preview + save-back
-- [x] PWA install + `.md` file handler
-- [x] Tauri v2 shell scaffolded — file association + single-instance launch
-- [x] Pre-ship polish: syntax highlight + copy, reading-width, find, scroll memory
-- [x] Native live-reload (Rust file watcher; web falls back to handle-poll)
-- [x] Folder mode (v0.2) — sidebar tree, relative images + `.md` links, remembered folder
-- [x] Vendored runtime deps — zero CDN, instant startup, fully offline (v0.1.1)
-- [x] Tabs, native Open/Save (v0.3)
-- [x] Outline, Mermaid, GitHub alerts, text size, print, arrow-key file flipping (v0.4)
-- [ ] **Later:** native folder browsing independent of WebView file APIs;
-      folder-wide native watch; session restoration
-
-Inline math $E = mc^2$ and a block:
-
-$$\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}$$
-
-A footnote for good measure.[^1]
-
-> [!TIP]
-> GitHub alerts render as callouts, and Mermaid diagrams load only when a
-> document has one:
-
-```mermaid
-flowchart LR
-  md[markdown] --> it[markdown-it + plugins] --> purify[DOMPurify] --> view[preview]
-```
-
-[^1]: markdown-it matches Markdig's advanced extensions here.
-
-## Project layout
-
-```
-glance/
-├── index.html                 # shell
-├── manifest.webmanifest       # PWA manifest (+ file handlers)
-├── sw.js                      # service worker (offline)
-├── styles/app.css             # chrome (toolbar, editor, empty state)
-├── src/
-│   ├── main.js                # orchestrator
-│   ├── pipeline.js            # markdown-it + plugins + sanitize
-│   ├── theme.js               # PowerToys light/dark CSS
-│   ├── files.js               # File System Access open/save
-│   ├── text.js                # line endings + BOM kept across edit/save
-│   ├── folder.js              # folder mode: tree, relative paths, saved handle
-│   ├── find.js                # in-doc find (CSS Custom Highlight API)
-│   ├── outline.js             # heading outline + current-section tracking
-│   ├── diagrams.js            # Mermaid, loaded only when a doc has a diagram
-│   ├── icons.js               # Lucide SVGs for toggling buttons
-│   └── platform.js            # Tauri bridge (native launch/file-assoc)
-├── icons/                     # generated PWA icons + favicon
-├── scripts/generate-icons.mjs # zero-dep PNG icon generator
-└── src-tauri/                 # Tauri v2 desktop shell
-    ├── src/{lib,main}.rs      # native open/save/watch + single-instance
-    ├── tauri.conf.json        # window, bundle, .md file associations
-    ├── build-web.mjs          # copies web app -> src-tauri/frontend
-    └── capabilities/          # v2 ACL
-```
-
-Regenerate icons after editing the generator:
-
-```bash
-node scripts/generate-icons.mjs
-```
+Not affiliated with Microsoft.
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE). Includes third-party notice for the PowerToys CSS.
+[MIT](LICENSE)
