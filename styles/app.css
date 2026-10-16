@@ -447,3 +447,12 @@ body.theme-dark #file-tree .tree-file.active { color: var(--interactive-ink); }
   #content .mermaid-diagram { break-inside: avoid; }
   body.print-from-dark .mermaid-diagram svg { filter: invert(1) hue-rotate(180deg); }
 }
+
+/* Large documents contain groups, keeping layout work near the viewport. */
+#content.large-document > .render-chunk {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 2400px;
+}
+@media print {
+  #content.large-document > .render-chunk { content-visibility: visible; contain-intrinsic-size: none; }
+}

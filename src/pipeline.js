@@ -69,7 +69,9 @@ export async function createRenderer() {
     console.warn('[glance] highlight.js failed to load:', e);
   }
 
+  let largeDocument = false;
   const highlight = (str, lang) => {
+    if (largeDocument) return '';
     if (lang === 'mermaid') return ''; // left as source for diagrams.js
     if (hljs) {
       try {
@@ -120,11 +122,28 @@ export async function createRenderer() {
     console.warn('[glance] anchor plugin failed to load:', e);
   }
 
+  const sanitize = (html) => DOMPurify.sanitize(html, { ADD_ATTR: ['target', 'rel', 'class', 'id'] });
   return {
-    /** markdown string -> sanitized HTML string */
+    /** Normal documents keep the immediate render path. */
     render(text) {
-      const dirty = md.render(stripFrontmatter(text));
-      return DOMPurify.sanitize(dirty, { ADD_ATTR: ['target', 'rel', 'class', 'id'] });
+      largeDocument = text.length > 256 * 1024;
+      return sanitize(md.render(stripFrontmatter(text)));
+    },
+    /** Parse once so references, footnotes and duplicate heading IDs stay global.
+     * Yield only at balanced block boundaries, never through a list or table. */
+    *chunks(text) {
+      largeDocument = true;
+      const env = {};
+      const tokens = md.parse(stripFrontmatter(text), env);
+      let start = 0;
+      let depth = 0;
+      for (let end = 0; end < tokens.length; end++) {
+        depth += tokens[end].nesting;
+        if (depth === 0 && (end - start >= (start === 0 ? 400 : 1600) || end === tokens.length - 1)) {
+          yield sanitize(md.renderer.render(tokens.slice(start, end + 1), md.options, env));
+          start = end + 1;
+        }
+      }
     },
   };
 }

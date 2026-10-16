@@ -174,34 +174,57 @@ async function renderPreview() {
   const tab = activeTab;
   if (!tab) return;
   revokeObjectUrls();
-  const fragment = document.createElement('template');
-  fragment.innerHTML = renderer.render(state.text);
+  const isCurrent = () => version === renderVersion && tab === activeTab;
+  const large = state.text.length > 256 * 1024 && renderer.chunks;
+  els.content.classList.toggle('large-document', !!large);
+  els.content.replaceChildren();
+  find.setContainer(els.content);
   let foundRemote = false;
-  fragment.content.querySelectorAll('img').forEach((img) => {
-    img.removeAttribute('srcset');
-    const src = img.getAttribute('src') || '';
-    if (/^https?:/i.test(src)) {
-      img.dataset.remote = src;
-      if (!state.imagesAllowed) img.removeAttribute('src');
-      foundRemote = true;
+  const chunks = large ? renderer.chunks(state.text) : [renderer.render(state.text)];
+  els.content.setAttribute('aria-busy', 'true');
+  let first = true;
+  for (const html of chunks) {
+    if (!isCurrent()) return;
+    const fragment = document.createElement('template');
+    fragment.innerHTML = html;
+    fragment.content.querySelectorAll('img').forEach((img) => {
+      img.removeAttribute('srcset');
+      const src = img.getAttribute('src') || '';
+      if (/^https?:/i.test(src)) {
+        img.dataset.remote = src;
+        if (!state.imagesAllowed) img.removeAttribute('src');
+        foundRemote = true;
+      }
+    });
+    fragment.content.querySelectorAll('a[href^="http"]').forEach((a) => {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    });
+    addCopyButtons(fragment.content);
+    if (large) {
+      const section = document.createElement('div');
+      section.className = 'render-chunk';
+      section.append(fragment.content);
+      els.content.append(section);
+    } else els.content.append(fragment.content);
+    els.btnImages.hidden = !foundRemote;
+    if (first) {
+      first = false;
+      window.scrollTo({ top: tab.scrollY, behavior: 'instant' });
     }
-  });
-  els.content.replaceChildren(fragment.content);
-  els.content.querySelectorAll('a[href^="http"]').forEach((a) => {
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-  });
-  addCopyButtons();
+    if (large) await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  if (!isCurrent()) return;
+  els.content.setAttribute('aria-busy', 'false');
   outlineCount = outline.build(els.content);
   updateOutline();
-  els.btnImages.hidden = !foundRemote;
   updateImagesButton();
   await resolveRelativeAssets(tab, version);
-  const isCurrent = () => version === renderVersion && tab === activeTab;
+  if (!isCurrent()) return;
   await renderDiagrams(els.content, { theme: state.theme, isCurrent });
   if (isCurrent()) {
     outline.spy();
-    find.setContainer(els.content);
+    if (!els.findbar.hidden && els.findInput.value) runFind();
   }
 }
 
@@ -252,8 +275,8 @@ async function resolveRelativeAssets(tab, version) {
 }
 
 /* hover "copy" button on each code block */
-function addCopyButtons() {
-  els.content.querySelectorAll('pre').forEach((pre) => {
+function addCopyButtons(container = els.content) {
+  container.querySelectorAll('pre').forEach((pre) => {
     const code = pre.querySelector('code');
     if (!code) return;
     const btn = document.createElement('button');
@@ -340,7 +363,9 @@ async function activateTab(tab) {
   renderTabs();
   await renderPreview();
   if (tab !== activeTab) return;
-  window.scrollTo({ top: tab.scrollY, left: 0, behavior: 'instant' });
+  if (!els.content.classList.contains('large-document')) {
+    window.scrollTo({ top: tab.scrollY, left: 0, behavior: 'instant' });
+  }
   els.content.scrollTop = tab.previewY;
   els.editor.scrollTop = tab.editorY;
   startWatch(tab);
@@ -355,6 +380,7 @@ async function closeTab(tab) {
   tabs.splice(index, 1);
   if (tab !== activeTab) { renderTabs(); return; }
   activeTab = null;
+  renderVersion++;
   stopWatch();
   revokeObjectUrls();
   if (tabs.length) {
