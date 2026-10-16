@@ -2,7 +2,7 @@
 
 > Paste this file into a ChatGPT/Claude session to bring it fully up to speed on
 > the project. It covers what glance is, every decision made and why, the full
-> architecture, and current status. Last updated: 2026-09-24.
+> architecture, and current status. Last updated: 2026-10-16.
 
 ## What glance is
 
@@ -60,6 +60,8 @@ instant startup and zero friction. Feature creep is actively resisted.
 | WebView2 host                    | browser / Tauri WebView2                     |
 | (none — Peek has no highlighting)| `highlight.js` common build, github/github-dark themes |
 | (none)                           | `markdown-it-anchor` — slugged heading ids + hover `#` permalink |
+| (none)                           | GitHub alerts (`> [!NOTE]` …) — small core rule in `pipeline.js` |
+| (none)                           | Mermaid 12 (chunked ESM, `vendor/mermaid/`), lazy via `diagrams.js` |
 | Sanitization                     | `DOMPurify`                                  |
 
 Every optional plugin loads in a try/catch — one failing never breaks rendering.
@@ -79,6 +81,9 @@ glance/
 │   ├── files.js               # FS Access open/save + drag-drop + fallbacks
 │   ├── folder.js              # folder mode: tree walk, IndexedDB handle persistence, path resolution
 │   ├── find.js                # in-doc find via CSS Custom Highlight API (no DOM mutation)
+│   ├── text.js                # decode/encode: docs held as LF, original EOL + BOM restored on save
+│   ├── outline.js             # heading outline panel + binary-searched current-section spy
+│   ├── diagrams.js            # Mermaid: imported only when a doc has a ```mermaid block
 │   ├── icons.js               # Lucide SVG strings for toggling buttons
 │   └── platform.js            # Tauri bridge (withGlobalTauri; no npm dep)
 ├── icons/                     # icon.svg = Onee master mark (single source); PWA icons + favicon (generated from it)
@@ -105,7 +110,15 @@ Enter/Shift+Enter step, Esc close, CSS Custom Highlight API); scroll position
 remembered per file (localStorage, keyed by path||name); smooth-scroll +
 subtle enter/theme animations (all disabled under `prefers-reduced-motion`);
 Onee mascot on the empty state; favicon is the Onee mark (static navy, no longer
-randomized). The brand blue is the Onee logo navy (`#004883`) via
+randomized). GitHub alerts render as titled callouts in GitHub's colours.
+Mermaid diagrams render with the flat `classic` look and `neutral`/`dark`
+themes (v12's default `neo` look adds drop shadows); the source stays visible
+until drawn, parse errors keep the source, theme toggle redraws. Outline panel
+(h1-h4, `Ctrl+Shift+O`): docked on wide windows (choice persisted), overlay
+on narrow; read mode only, 2+ headings. Text size `Ctrl+=`/`Ctrl+-`/`Ctrl+0`
+(70-200%, persisted, pins the top block while zooming). Print (`Ctrl+P`)
+outputs only the document, forcing the light theme (diagrams drawn for dark
+are inverted). The brand blue is the Onee logo navy (`#004883`) via
 `--brand`/`--accent`/`--accent-tint` in `:root`. Dark reading links use a lighter
 blue for legibility against the dark page; the logo navy itself is unchanged.
 
@@ -113,7 +126,8 @@ blue for legibility against the dark page; the logo navy itself is unchanged.
 debounce), or full-height editing on narrow windows. `Ctrl+S` saves back via a
 browser handle or native path; changed tabs show a dot in the close slot and
 Save appears only for the active changed file. Dirty flags also appear in the
-title; beforeunload and tab-close guards protect unsaved edits. A download fallback
+title; beforeunload and tab-close guards protect unsaved edits. Saving keeps
+the file's line endings (CRLF/LF) and UTF-8 BOM (see `text.js`). A download fallback
 keeps the tab dirty because it cannot confirm an in-place save.
 
 **Tabs:** each open document keeps its own text, dirty state, mode, scroll,
@@ -128,7 +142,9 @@ polls the FS Access handle every 1.5s + on window focus. Re-renders preserving
 scroll; never clobbers unsaved edits.
 
 **Folder mode (v0.2):** open a directory → collapsible sidebar file tree of
-all markdown; relative images resolve from disk to blob URLs (incl. `../`
+all markdown; Up/Down/Home/End walk the tree and open files as a single
+italic preview tab (replaced by the next flip; kept on edit, click/Enter, or
+tab double-click); relative images resolve from disk to blob URLs (incl. `../`
 up-paths, normalized against the folder root); relative `.md` links navigate
 in-app; folder handle persisted in IndexedDB and restored next session if
 permission still granted (re-grant needs a user gesture). Object URLs revoked
@@ -143,7 +159,9 @@ second launch forwards args via single-instance plugin and focuses the window.
 Native Open and Save use the dialog plugin and a Rust-side allowlist of opened
 paths. `withGlobalTauri` keeps the frontend free of npm Tauri dependencies.
 
-**Keyboard:** Ctrl+O open, Ctrl+S save, Ctrl+E edit toggle, Ctrl+F find.
+**Keyboard:** Ctrl+O open, Ctrl+S save, Ctrl+E edit toggle, Ctrl+F find,
+Ctrl+Shift+O outline, Ctrl+=/-/0 text size, Ctrl+P print, Ctrl+W close tab,
+Ctrl+Tab switch tab; arrow keys in the folder tree.
 
 ## Bugs hit and lessons learned
 
@@ -164,6 +182,13 @@ paths. `withGlobalTauri` keeps the frontend free of npm Tauri dependencies.
    tauri-action's CLI detection is unreliable → workflow npm-installs
    `@tauri-apps/cli` globally and passes `tauriScript: tauri`.
 
+5. **Textarea normalizes CRLF to LF.** Reading `editor.value` back silently
+   rewrote Windows line endings on save, and the dirty check never matched
+   the original again. Browser `File.text()` also strips a UTF-8 BOM. Fix:
+   `text.js` holds LF text plus the original EOL/BOM per tab.
+6. **Spread limits:** `new Highlight(...ranges)` overflowed the stack with
+   tens of thousands of find matches. Add ranges in a loop.
+
 ## Release process
 
 ```bash
@@ -179,10 +204,14 @@ Release for manual review and publish.
 ## Current status & roadmap
 
 - Web/PWA: fully working, all features above live on `main`.
-- v0.2.0 is tagged; tabs, native Open/Save, and reader polish are merged into
-  `main`. This branch prepares v0.3.0.
-- Rust changes passed CI compilation; a real desktop dialog smoke test still
-  needs a desktop runtime. There is no Rust toolchain in this WSL environment.
+- v0.3.1 shipped (tabs, native Open/Save); Samuel uses the installed desktop
+  build day to day. v0.4.0 adds outline, Mermaid, GitHub alerts, text size,
+  print, arrow-key file flipping, and the line-ending/BOM save fix.
+- Feature work is checked headlessly with Playwright against the served web
+  app (no repo test suite). There is no Rust toolchain in this WSL environment.
+- Known: a ~5MB document takes tens of seconds to lay out (pre-existing; full
+  layout of the DOM dominates). `content-visibility` is the likely fix but
+  risks scroll-position jumps; not done yet.
 - **Later:** native folder browsing under Tauri (FS Access API may be limited
   in WebView2); folder-wide native watch; session restoration; Mermaid (lazy).
 
