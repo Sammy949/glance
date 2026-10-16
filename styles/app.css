@@ -75,12 +75,12 @@ html:has(body.theme-dark) { --scroll-thumb: #333; --scroll-thumb-hover: #8b8b8b;
 html, body { min-height: 100%; }
 
 /* Same quiet 4px treatment as samuelyahaya.com, with glance's light/dark tones. */
-:where(html, #tabs, #file-tree, #editor, #content) {
+:where(html, #tabs, #file-tree, #editor, #content, #outline, .context-menu) {
   scrollbar-width: thin;
   scrollbar-color: var(--scroll-thumb) transparent;
 }
 @supports selector(::-webkit-scrollbar) {
-  :where(html, #tabs, #file-tree, #editor, #content) {
+  :where(html, #tabs, #file-tree, #editor, #content, #outline, .context-menu) {
     scrollbar-width: auto;
     scrollbar-color: auto;
   }
@@ -369,7 +369,6 @@ html { scroll-behavior: auto; }
   padding: 18px 10px 24px;
   background: var(--surface); border-left: 1px solid var(--border);
   font: 13px/1.35 var(--font-ui);
-  scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent;
 }
 body.has-outline.outline-docked #workspace { margin-right: var(--outline-w); }
 #outline ol { list-style: none; margin: 0; padding: 0; }
