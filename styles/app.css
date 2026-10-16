@@ -401,7 +401,6 @@ body.has-sidebar #empty { margin-left: var(--sidebar-w); }
 }
 #folder-name {
   font-size: 12px; font-weight: 600; color: var(--text-muted);
-  text-transform: uppercase; letter-spacing: .4px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 #btn-folder-close {
