@@ -235,9 +235,10 @@ body.dragging #drop-hint { display: flex; }
 #toast {
   position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(8px);
   z-index: 1100; padding: 9px 16px; border-radius: var(--radius-lg);
-  background: rgba(30, 30, 30, .92); color: #fff; font-size: 13px;
+  background: var(--surface-raised); color: var(--text);
+  border: 1px solid var(--border); box-shadow: var(--shadow-float); font-size: 13px;
   font-family: var(--font-ui);
-  opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease;
+  opacity: 0; pointer-events: none; transition: opacity .12s ease, transform .12s ease;
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
@@ -268,22 +269,22 @@ body.reading-width:not(.mode-edit) #content {
   position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
   z-index: 1050; display: flex; align-items: center; gap: 4px;
   padding: 6px 6px 6px 12px; border-radius: var(--radius-lg);
-  background: rgba(30, 30, 30, .84); backdrop-filter: blur(8px);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, .3);
+  background: var(--surface-raised); color: var(--text);
+  border: 1px solid var(--border); box-shadow: var(--shadow-float);
   font-family: var(--font-ui);
 }
-#find-input { all: unset; width: 200px; color: #fff; font-size: 13px; }
-#find-input::placeholder { color: rgba(255, 255, 255, .5); }
+#find-input { all: unset; width: min(200px, 43vw); color: var(--text); font-size: 13px; }
+#find-input::placeholder { color: var(--text-faint); }
 #find-count {
-  color: rgba(255, 255, 255, .6); font-size: 12px; min-width: 44px;
+  color: var(--text-muted); font-size: 12px; min-width: 44px;
   text-align: center; font-variant-numeric: tabular-nums;
 }
 #findbar button {
-  all: unset; cursor: pointer; color: #e8e8e8;
+  all: unset; cursor: pointer; color: var(--text);
   display: inline-flex; align-items: center; justify-content: center;
   padding: 6px; border-radius: var(--radius-md); transition: background .12s ease;
 }
-#findbar button:hover { background: rgba(255, 255, 255, .14); }
+#findbar button:hover { background: var(--hover); }
 #findbar button svg { width: 16px; height: 16px; }
 
 ::highlight(find) { background-color: rgba(255, 214, 0, .35); }
@@ -343,7 +344,7 @@ html { scroll-behavior: smooth; }
   from { transform: translateX(-50%) translateY(-6px); }
   to { transform: translateX(-50%) translateY(0); }
 }
-#findbar:not([hidden]) { animation: glance-pop .14s ease; }
+
 
 /* Onee idle drift on the empty state — a quiet heartbeat, transform-only so the
  * mark is always visible; never a hover boop. Stilled under reduced-motion. */
