@@ -64,8 +64,8 @@ cargo tauri build    # installers in src-tauri/target/release/bundle/
 `src-tauri/Cargo.toml` is updated, merged, and checked on `main`:
 
 ```bash
-node scripts/check-release.mjs v0.3.1
-git tag v0.3.1 && git push origin v0.3.1
+node scripts/check-release.mjs v0.4.0
+git tag v0.4.0 && git push origin v0.4.0
 ```
 
 The `release` workflow checks that the tag matches both package versions and
