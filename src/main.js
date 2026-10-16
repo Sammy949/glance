@@ -1,5 +1,6 @@
 /* main.js — glance orchestrator: state, rendering, edit mode, files, PWA glue. */
 
+import { matchFilename } from './filter.js';
 import { resizePanel } from './panels.js';
 import { createMenu } from './menu.js';
 import { createRenderer } from './pipeline.js';
@@ -42,6 +43,7 @@ const els = {
   sidebar: document.getElementById('sidebar'),
   folderName: document.getElementById('folder-name'),
   fileTree: document.getElementById('file-tree'),
+  fileFilter: document.getElementById('file-filter'),
   btnFolderClose: document.getElementById('btn-folder-close'),
   documentBar: document.getElementById('document-bar'),
   tabs: document.getElementById('tabs'),
@@ -504,6 +506,8 @@ async function useFolder(dir) {
 }
 
 function renderTree(root) {
+  els.fileFilter.value = '';
+  treeExpansion = null;
   els.fileTree.innerHTML = '';
   els.fileTree.appendChild(buildTreeDom(root));
 }
@@ -527,6 +531,7 @@ function buildTreeDom(node) {
       const sub = buildTreeDom(child);
       btn.setAttribute('aria-expanded', 'true');
       btn.addEventListener('click', () => {
+        if (els.fileFilter.value) return;
         const open = li.classList.toggle('open');
         sub.hidden = !open;
         btn.setAttribute('aria-expanded', String(open));
@@ -549,6 +554,60 @@ function buildTreeDom(node) {
   }
   return ul;
 }
+
+let treeExpansion = null;
+function filterTree() {
+  const query = els.fileFilter.value;
+  if (query && !treeExpansion) {
+    treeExpansion = [...els.fileTree.querySelectorAll('.tree-dir')].map((button) => [button, button.getAttribute('aria-expanded') === 'true']);
+  }
+  for (const button of els.fileTree.querySelectorAll('.tree-file')) {
+    const name = button._node.name;
+    const match = matchFilename(name, query);
+    button.parentElement.hidden = !match;
+    const label = button.querySelector('span');
+    label.replaceChildren();
+    if (query && match) {
+      const strong = document.createElement('strong');
+      strong.textContent = name.slice(match.start, match.end);
+      label.append(name.slice(0, match.start), strong, name.slice(match.end));
+    } else label.textContent = name;
+  }
+  for (const button of [...els.fileTree.querySelectorAll('.tree-dir')].reverse()) {
+    const row = button.parentElement;
+    const list = row.querySelector(':scope > ul');
+    row.hidden = !!query && ![...list.children].some((child) => !child.hidden);
+    if (query) {
+      list.hidden = false; row.classList.add('open'); button.setAttribute('aria-expanded', 'true');
+    }
+  }
+  if (!query && treeExpansion) {
+    for (const [button, open] of treeExpansion) {
+      button.setAttribute('aria-expanded', String(open));
+      button.parentElement.classList.toggle('open', open);
+      button.parentElement.querySelector(':scope > ul').hidden = !open;
+    }
+    treeExpansion = null;
+  }
+}
+function firstFilteredFile() {
+  return [...els.fileTree.querySelectorAll('.tree-file')].find((button) => button.offsetParent !== null);
+}
+els.fileFilter.addEventListener('input', filterTree);
+els.fileFilter.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowDown') { event.preventDefault(); firstFilteredFile()?.focus(); }
+  else if (event.key === 'Enter') { event.preventDefault(); firstFilteredFile()?.click(); }
+  else if (event.key === 'Escape') {
+    event.preventDefault(); els.fileFilter.value = ''; filterTree();
+    const active = els.fileTree.querySelector('.tree-file.active');
+    (active?.offsetParent !== null && active ? active : firstFilteredFile())?.focus();
+  }
+});
+els.fileTree.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && els.fileFilter.value) {
+    event.preventDefault(); els.fileFilter.value = ''; filterTree(); els.fileFilter.focus();
+  }
+});
 
 async function selectTreeFile(node, { preview = false } = {}) {
   try {
@@ -997,6 +1056,9 @@ addEventListener('keydown', (e) => {
   else if (k === 'o') { e.preventDefault(); openFile(); }
   else if (k === 's') { e.preventDefault(); save(); }
   else if (k === 'e') { e.preventDefault(); toggleMode(); }
+  else if (k === 'f' && e.shiftKey && state.root) {
+    e.preventDefault(); document.body.classList.add('has-sidebar'); updateOutline(); els.fileFilter.focus();
+  }
   else if (k === 'f' && state.mode === 'read' && !els.workspace.hidden) { e.preventDefault(); openFind(); }
   else if (k === 'w' && activeTab) { e.preventDefault(); closeTab(activeTab); }
   else if (k === '=' || k === '+') { e.preventDefault(); setZoom(zoom + 0.1); }

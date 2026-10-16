@@ -13,6 +13,7 @@ const SHELL = [
   './src/main.js',
   './src/menu.js',
   './src/panels.js',
+  './src/filter.js',
   './src/pipeline.js',
   './src/theme.js',
   './src/files.js',

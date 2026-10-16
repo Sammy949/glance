@@ -510,3 +510,12 @@ body.has-sidebar .sidebar-resize, body.has-outline .outline-resize { display: bl
 body.resizing, body.resizing * { cursor: col-resize !important; user-select: none !important; }
 @media (max-width: 600px) { #sidebar { max-width: calc(100vw - 24px); } .sidebar-resize { left: calc(min(var(--sidebar-w), 100vw - 24px) - 3px); } }
 @media print { .panel-resize { display: none !important; } }
+
+#file-filter {
+  margin: 10px 12px 2px; min-width: 0; padding: 7px 8px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text); font: 13px var(--font-ui);
+}
+#file-filter::placeholder { color: var(--text-faint); }
+#file-filter:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+#file-tree strong { font-weight: 700; }
