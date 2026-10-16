@@ -74,7 +74,11 @@ export function search(query) {
   }
 
   if (ranges.length) {
-    CSS.highlights.set('find', new Highlight(...ranges));
+    // Add ranges one by one: spreading tens of thousands of matches into the
+    // constructor overflows the call stack.
+    const highlight = new Highlight();
+    for (const range of ranges) highlight.add(range);
+    CSS.highlights.set('find', highlight);
     current = 0;
     markCurrent();
     scrollToCurrent();
