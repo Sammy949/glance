@@ -134,10 +134,10 @@ body.mode-edit #btn-width { display: none !important; }
 body.has-sidebar #document-bar { left: var(--sidebar-w); }
 #tabs { display: flex; align-items: stretch; min-width: 0; flex: 1; height: 100%; overflow-x: auto; scrollbar-width: thin; }
 .tab { display: flex; align-items: center; flex: none; max-width: 230px; border-right: 1px solid var(--border); color: var(--text-muted); cursor: pointer; }
-.tab.active { background: var(--surface); color: var(--text); box-shadow: inset 0 2px var(--interactive-ink); }
+.tab.active { background: var(--surface); color: var(--interactive-ink); font-weight: 600; }
 .tab.preview .tab-select { font-style: italic; }
 .tab-select, .tab-close { all: unset; cursor: pointer; box-sizing: border-box; }
-.tab-select { display: block; min-width: 48px; max-width: 190px; padding: 11px 6px 11px 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab-select { display: flex; align-items: center; height: calc(100% - 8px); margin-block: 4px; min-width: 48px; max-width: 190px; padding: 0 6px 0 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab-close { display: grid; place-items: center; width: 30px; height: 30px; flex: none; margin-right: 4px; border-radius: var(--radius-sm); line-height: 1; }
 .tab-close svg { width: 15px; height: 15px; }
 .tab-close .dirty-mark { display: none; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
