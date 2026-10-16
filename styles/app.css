@@ -214,7 +214,7 @@ body.mode-edit #content { height: 100vh; overflow: auto; }
 }
 #empty .primary { background: var(--brand); color: #fff; }
 #empty .primary:hover { filter: brightness(1.08); }
-#empty .ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+#empty .ghost { background: transparent; color: var(--text); }
 #empty .ghost:hover { background: var(--hover); }
 #empty kbd {
   font-family: var(--font-mono); font-size: 12px;
