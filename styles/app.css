@@ -114,6 +114,7 @@ body.has-sidebar #document-bar { left: var(--sidebar-w); }
 #tabs { display: flex; align-items: stretch; min-width: 0; flex: 1; height: 100%; overflow-x: auto; scrollbar-width: thin; }
 .tab { display: flex; align-items: center; flex: none; max-width: 230px; border-right: 1px solid var(--ui-border); color: var(--ui-muted); cursor: pointer; }
 .tab.active { background: var(--chrome-bg); color: var(--ui-fg); box-shadow: inset 0 2px var(--tab-accent); }
+.tab.preview .tab-select { font-style: italic; }
 .tab-select, .tab-close { all: unset; cursor: pointer; box-sizing: border-box; }
 .tab-select { display: block; min-width: 48px; max-width: 190px; padding: 11px 6px 11px 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab-close { display: grid; place-items: center; width: 30px; height: 30px; flex: none; margin-right: 4px; border-radius: 5px; line-height: 1; }

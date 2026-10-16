@@ -101,8 +101,12 @@ function renderTabs() {
     const wrapper = document.createElement('div');
     wrapper.className = 'tab';
     if (tab === activeTab) wrapper.classList.add('active');
+    if (tab.preview) wrapper.classList.add('preview');
     wrapper.addEventListener('click', (event) => {
       if (!event.target.closest('.tab-close')) activateTab(tab);
+    });
+    wrapper.addEventListener('dblclick', (event) => {
+      if (!event.target.closest('.tab-close')) keepTab(tab);
     });
     const button = document.createElement('button');
     button.type = 'button';
@@ -275,9 +279,22 @@ function updateImagesButton() {
 
 /* ---------------- document lifecycle ---------------- */
 
-async function loadDoc(doc) {
+/* A preview tab (opened by flipping through the sidebar with the arrow keys)
+ * is replaced by the next flip, so browsing a folder doesn't pile up tabs.
+ * Editing it, opening it deliberately, or double-clicking its tab keeps it. */
+function keepTab(tab) {
+  if (!tab?.preview) return;
+  tab.preview = false;
+  renderTabs();
+}
+
+async function loadDoc(doc, { preview = false } = {}) {
   const existing = await matchingTab(doc);
-  if (existing) { await activateTab(existing); return; }
+  if (existing) {
+    await activateTab(existing);
+    if (!preview) keepTab(existing);
+    return;
+  }
   const { text, eol, bom } = decodeText(doc.text || '');
   const tab = {
     id: nextTabId++, name: doc.name || 'untitled.md',
@@ -286,8 +303,11 @@ async function loadDoc(doc) {
     mode: doc.mode || 'read', imagesAllowed: false, dirty: false,
     docRoot: doc.docRoot || null, relDir: doc.relDir ?? null,
     scrollY: doc.key ? scrollStore[doc.key] || 0 : 0, previewY: 0, editorY: 0,
+    preview,
   };
-  tabs.push(tab);
+  const replaced = preview ? tabs.find((t) => t.preview && !t.dirty) : null;
+  if (replaced) tabs.splice(tabs.indexOf(replaced), 1, tab);
+  else tabs.push(tab);
   await activateTab(tab);
 }
 
@@ -416,7 +436,7 @@ async function useFolder(dir) {
 
   syncTreeActive();
   const firstBtn = els.fileTree.querySelector('.tree-file');
-  if (!activeTab && firstBtn) selectTreeFile(firstBtn._node, firstBtn);
+  if (!activeTab && firstBtn) selectTreeFile(firstBtn._node);
 }
 
 function renderTree(root) {
@@ -466,13 +486,13 @@ function buildTreeDom(node) {
   return ul;
 }
 
-async function selectTreeFile(node) {
+async function selectTreeFile(node, { preview = false } = {}) {
   try {
     const file = await node.handle.getFile();
     await loadDoc({ name: file.name, text: await readFileText(file), handle: node.handle,
       docRoot: state.root, relDir: node.parentPath,
-      key: `${state.root.name}/${[...node.parentPath, file.name].join('/')}` });
-    if (matchMedia('(max-width: 600px)').matches) document.body.classList.remove('has-sidebar');
+      key: `${state.root.name}/${[...node.parentPath, file.name].join('/')}` }, { preview });
+    if (!preview && matchMedia('(max-width: 600px)').matches) document.body.classList.remove('has-sidebar');
   } catch (e) { console.warn(e); flash('Could not open file'); }
 }
 
@@ -483,6 +503,44 @@ function syncTreeActive() {
     if (btn._node.handle === activeTab.handle) { btn.classList.add('active'); break; }
   }
 }
+
+/* Arrow keys walk the tree; landing on a file opens it as a preview tab.
+ * Holding a key only renders the file it stops on. */
+let flipTarget = null;
+let flipping = false;
+async function flipTo(node) {
+  flipTarget = node;
+  if (flipping) return;
+  flipping = true;
+  while (flipTarget) {
+    const next = flipTarget;
+    flipTarget = null;
+    await selectTreeFile(next, { preview: true });
+  }
+  flipping = false;
+}
+
+els.fileTree.addEventListener('keydown', (e) => {
+  const current = e.target.closest('button');
+  if (!current) return;
+  const items = [...els.fileTree.querySelectorAll('button')].filter((b) => b.offsetParent !== null);
+  const index = items.indexOf(current);
+  const isDir = current.classList.contains('tree-dir');
+  const expanded = current.getAttribute('aria-expanded') === 'true';
+  let target = null;
+  if (e.key === 'ArrowDown') target = items[index + 1];
+  else if (e.key === 'ArrowUp') target = items[index - 1];
+  else if (e.key === 'Home') target = items[0];
+  else if (e.key === 'End') target = items[items.length - 1];
+  else if (e.key === 'ArrowRight' && isDir && !expanded) { e.preventDefault(); current.click(); return; }
+  else if (e.key === 'ArrowLeft' && isDir && expanded) { e.preventDefault(); current.click(); return; }
+  else if (e.key === 'ArrowLeft') target = current.closest('ul')?.closest('li')?.querySelector(':scope > .tree-dir');
+  else return;
+  e.preventDefault();
+  if (!target) return;
+  target.focus();
+  if (target._node) flipTo(target._node);
+});
 
 function toggleSidebar() { document.body.classList.toggle('has-sidebar'); }
 
@@ -521,7 +579,7 @@ function setMode(mode) {
   if (activeTab) activeTab.mode = mode;
   document.body.classList.toggle('mode-edit', mode === 'edit');
   updateModeButton();
-  if (mode === 'edit') { closeFind(); els.editor.focus(); }
+  if (mode === 'edit') { keepTab(activeTab); closeFind(); els.editor.focus(); }
 }
 
 function updateModeButton() {
@@ -627,6 +685,7 @@ els.editor.addEventListener('input', () => {
   if (activeTab) activeTab.text = state.text;
   const dirty = state.text !== state.savedText;
   if (dirty !== state.dirty) { state.dirty = dirty; updateTitle(); }
+  if (dirty) keepTab(activeTab);
   clearTimeout(renderTimer);
   renderTimer = setTimeout(renderPreview, 120);
 });
