@@ -7,6 +7,7 @@ import { ICONS } from './icons.js';
 import { isTauri, initNativeLaunch, watchFile, pickNativeDocument, saveNativeDocument } from './platform.js';
 import * as find from './find.js';
 import * as folder from './folder.js';
+import * as outline from './outline.js';
 import { decodeText, encodeText, readFileText } from './text.js';
 
 const els = {
@@ -24,6 +25,8 @@ const els = {
   btnTheme: document.getElementById('btn-theme'),
   btnImages: document.getElementById('btn-images'),
   btnWidth: document.getElementById('btn-width'),
+  btnOutline: document.getElementById('btn-outline'),
+  outline: document.getElementById('outline'),
   findbar: document.getElementById('findbar'),
   findInput: document.getElementById('find-input'),
   findCount: document.getElementById('find-count'),
@@ -188,6 +191,8 @@ async function renderPreview() {
     a.rel = 'noopener noreferrer';
   });
   addCopyButtons();
+  outlineCount = outline.build(els.content);
+  updateOutline();
   els.btnImages.hidden = !foundRemote;
   updateImagesButton();
   await resolveRelativeAssets(tab, version);
@@ -356,6 +361,7 @@ async function closeTab(tab) {
     els.btnWidth.hidden = true;
     els.btnImages.hidden = true;
     document.body.classList.remove('mode-edit');
+    updateOutline();
     state.name = null;
     state.key = null;
     updateTitle();
@@ -579,6 +585,7 @@ function setMode(mode) {
   if (activeTab) activeTab.mode = mode;
   document.body.classList.toggle('mode-edit', mode === 'edit');
   updateModeButton();
+  updateOutline();
   if (mode === 'edit') { keepTab(activeTab); closeFind(); els.editor.focus(); }
 }
 
@@ -602,6 +609,39 @@ function toggleReadingWidth() {
   store.set('glance.readingWidth', state.readingWidth);
   applyReadingWidth();
 }
+
+/* ---------------- outline ---------------- */
+
+/* Docked beside the text on wide windows (remembered); on narrow ones it
+ * slides over the text and closes once a heading is picked. */
+const wideQuery = matchMedia('(min-width: 1001px)');
+let outlineCount = 0;
+let outlinePinned = store.get('glance.outline', true);
+let outlineOverlay = false;
+
+function updateOutline() {
+  const available = !els.workspace.hidden && state.mode === 'read' && outlineCount >= 2;
+  const show = available && (wideQuery.matches ? outlinePinned : outlineOverlay);
+  els.btnOutline.hidden = !available;
+  els.btnOutline.setAttribute('aria-pressed', String(show));
+  els.outline.hidden = !show;
+  document.body.classList.toggle('has-outline', show);
+  if (show) outline.spy();
+}
+
+function toggleOutline() {
+  if (els.btnOutline.hidden) return;
+  if (wideQuery.matches) {
+    outlinePinned = !outlinePinned;
+    store.set('glance.outline', outlinePinned);
+  } else outlineOverlay = !outlineOverlay;
+  updateOutline();
+}
+
+outline.init(els.outline, () => {
+  if (!wideQuery.matches && outlineOverlay) { outlineOverlay = false; updateOutline(); }
+});
+wideQuery.addEventListener('change', () => { outlineOverlay = false; updateOutline(); });
 
 /* ---------------- text size ---------------- */
 
@@ -761,6 +801,7 @@ els.btnEdit.onclick = toggleMode;
 els.btnImages.onclick = () => { state.imagesAllowed = !state.imagesAllowed; updateImages(); };
 els.btnTheme.onclick = () => { state.theme = toggleTheme(state.theme); };
 els.btnWidth.onclick = toggleReadingWidth;
+els.btnOutline.onclick = toggleOutline;
 applyReadingWidth();
 applyZoom();
 
@@ -807,7 +848,8 @@ addEventListener('keydown', (e) => {
   const mod = e.ctrlKey || e.metaKey;
   if (!mod) return;
   const k = e.key.toLowerCase();
-  if (k === 'o') { e.preventDefault(); openFile(); }
+  if (k === 'o' && e.shiftKey) { e.preventDefault(); toggleOutline(); }
+  else if (k === 'o') { e.preventDefault(); openFile(); }
   else if (k === 's') { e.preventDefault(); save(); }
   else if (k === 'e') { e.preventDefault(); toggleMode(); }
   else if (k === 'f' && state.mode === 'read' && !els.workspace.hidden) { e.preventDefault(); openFind(); }
