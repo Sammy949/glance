@@ -342,7 +342,10 @@ async function loadDoc(doc, { preview = false } = {}) {
     preview,
   };
   const replaced = preview ? tabs.find((t) => t.preview && !t.dirty) : null;
-  if (replaced) tabs.splice(tabs.indexOf(replaced), 1, tab);
+  if (replaced) {
+    replaced.editor?.remove();
+    tabs.splice(tabs.indexOf(replaced), 1, tab);
+  }
   else tabs.push(tab);
   await activateTab(tab);
 }
@@ -355,7 +358,22 @@ async function activateTab(tab) {
   closeFind();
   activeTab = tab;
   restoreActive(tab);
-  els.editor.value = state.text;
+  if (els.editor) {
+    els.editor.hidden = true; els.editor.removeAttribute('id');
+    if (!els.editor.classList.contains('document-editor')) els.editor.remove();
+  }
+  if (!tab.editor) {
+    tab.editor = document.createElement('textarea');
+    tab.editor.className = 'document-editor';
+    tab.editor.spellcheck = false;
+    tab.editor.placeholder = '# Write markdown…';
+    tab.editor.setAttribute('aria-label', 'Markdown editor');
+    tab.editor.value = state.text;
+    els.workspace.prepend(tab.editor);
+  }
+  els.editor = tab.editor;
+  els.editor.id = 'editor';
+  els.editor.hidden = false;
   els.empty.hidden = true;
   els.workspace.hidden = false;
   els.btnEdit.hidden = false;
@@ -371,6 +389,7 @@ async function activateTab(tab) {
   }
   els.content.scrollTop = tab.previewY;
   els.editor.scrollTop = tab.editorY;
+  if (state.mode === 'edit') els.editor.focus({ preventScroll: true });
   startWatch(tab);
   syncTreeActive();
 }
@@ -381,6 +400,7 @@ async function closeTab(tab) {
   const index = tabs.indexOf(tab);
   if (index < 0) return;
   tabs.splice(index, 1);
+  tab.editor?.remove();
   if (tab !== activeTab) { renderTabs(); return true; }
   activeTab = null;
   renderVersion++;
@@ -771,7 +791,8 @@ function toggleMode() {
 }
 
 let renderTimer = null;
-els.editor.addEventListener('input', () => {
+els.workspace.addEventListener('input', (event) => {
+  if (event.target !== els.editor) return;
   state.text = els.editor.value;
   if (activeTab) activeTab.text = state.text;
   const dirty = state.text !== state.savedText;

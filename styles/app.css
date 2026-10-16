@@ -162,6 +162,7 @@ body.has-tabs.mode-edit #editor, body.has-tabs.mode-edit #content { padding-top:
   font-family: var(--font-mono);
   font-size: calc(14px * var(--zoom, 1)); line-height: 1.6; tab-size: 2;
   background: var(--surface-sunken); color: var(--text);
+  caret-color: var(--text);
 }
 
 /* read mode: preview only. edit mode: side-by-side editor | preview. */
