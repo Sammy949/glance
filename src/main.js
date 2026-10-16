@@ -1,5 +1,6 @@
 /* main.js — glance orchestrator: state, rendering, edit mode, files, PWA glue. */
 
+import { createMenu } from './menu.js';
 import { createRenderer } from './pipeline.js';
 import { initTheme, toggleTheme, applyTheme } from './theme.js';
 import { pickFile, saveFile, fromDrop, fromHandle } from './files.js';
@@ -104,6 +105,7 @@ function renderTabs() {
   for (const tab of tabs) {
     const wrapper = document.createElement('div');
     wrapper.className = 'tab';
+    wrapper._tab = tab;
     if (tab === activeTab) wrapper.classList.add('active');
     if (tab.preview) wrapper.classList.add('preview');
     wrapper.addEventListener('click', (event) => {
@@ -347,6 +349,7 @@ async function loadDoc(doc, { preview = false } = {}) {
 
 async function activateTab(tab) {
   if (tab === activeTab) return;
+  contextMenu.close();
   rememberActive();
   clearTimeout(renderTimer);
   closeFind();
@@ -374,11 +377,11 @@ async function activateTab(tab) {
 
 async function closeTab(tab) {
   if (tab === activeTab) rememberActive();
-  if (tab.dirty && !window.confirm(`Discard unsaved changes to ${tab.name}?`)) return;
+  if (tab.dirty && !window.confirm(`Discard unsaved changes to ${tab.name}?`)) return false;
   const index = tabs.indexOf(tab);
   if (index < 0) return;
   tabs.splice(index, 1);
-  if (tab !== activeTab) { renderTabs(); return; }
+  if (tab !== activeTab) { renderTabs(); return true; }
   activeTab = null;
   renderVersion++;
   stopWatch();
@@ -400,6 +403,7 @@ async function closeTab(tab) {
     renderTabs();
     syncTreeActive();
   }
+  return true;
 }
 
 /* ---------------- live-reload (external edits) ---------------- */
@@ -836,6 +840,66 @@ async function openFile() {
   const doc = isTauri() ? await pickNativeDocument() : await pickFile();
   if (doc) await loadDoc(doc);
 }
+
+/* ---------------- context menus ---------------- */
+
+const contextMenu = createMenu(() => flash('Action could not be completed'));
+let clipboardAllowed = !!navigator.clipboard?.writeText;
+try {
+  navigator.permissions?.query({ name: 'clipboard-write' }).then((permission) => {
+    const update = () => { clipboardAllowed = permission.state !== 'denied'; };
+    update(); permission.onchange = update;
+  }).catch(() => {});
+} catch {}
+const copyItem = (label, text) => ({ label, disabled: !clipboardAllowed, run: async () => {
+  try { await navigator.clipboard.writeText(text); }
+  catch (error) { clipboardAllowed = false; throw error; }
+} });
+els.content.tabIndex = 0;
+contextMenu.bind(els.content, (target) => {
+  const items = [];
+  const selection = getSelection();
+  if (selection?.toString() && els.content.contains(selection.anchorNode)) items.push(copyItem('Copy', selection.toString()));
+  const link = target.closest('a[href]');
+  if (link) {
+    items.push(copyItem('Copy link', link.href));
+    items.push({ label: 'Open link', run: () => link.click() });
+  }
+  const code = target.closest('pre')?.querySelector('code');
+  if (code) items.push(copyItem('Copy code', code.textContent));
+  const heading = target.closest('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]');
+  if (heading) items.push(copyItem('Copy link to heading', `#${heading.id}`));
+  items.push({ label: 'Select all', run: () => {
+    const range = document.createRange(); range.selectNodeContents(els.content);
+    const selected = getSelection(); selected.removeAllRanges(); selected.addRange(range);
+  } }, null, { label: 'Find…', run: openFind },
+  { label: 'Edit here', run: () => setMode('edit') }, { label: 'Print…', run: () => window.print() });
+  return items;
+});
+async function closeTabs(list) {
+  for (const tab of list) if (await closeTab(tab) === false) break;
+}
+contextMenu.bind(els.tabs, (target) => {
+  const tab = target.closest('.tab')?._tab;
+  if (!tab) return [];
+  const right = tabs.slice(tabs.indexOf(tab) + 1);
+  const items = [
+    { label: 'Close', run: () => closeTab(tab) },
+    { label: 'Close others', disabled: tabs.length < 2, run: () => closeTabs(tabs.filter((other) => other !== tab)) },
+    { label: 'Close to the right', disabled: !right.length, run: () => closeTabs(right) },
+  ];
+  if (tab.path || tab.relDir) items.push(null, copyItem('Copy path', tab.path || tab.key));
+  return items;
+});
+contextMenu.bind(els.fileTree, (target) => {
+  const node = target.closest('.tree-file')?._node;
+  if (!node) return [];
+  return [
+    { label: 'Open', run: () => selectTreeFile(node) },
+    { label: 'Open in a new tab', run: () => selectTreeFile(node, { preview: false }) },
+    null, copyItem('Copy path', `${state.root.name}/${[...node.parentPath, node.name].join('/')}`),
+  ];
+});
 
 /* ---------------- wiring ---------------- */
 

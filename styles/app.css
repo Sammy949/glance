@@ -478,3 +478,23 @@ body.theme-dark #file-tree .tree-file.active { color: var(--interactive-ink); }
 @media print {
   #content.large-document > .render-chunk { content-visibility: visible; contain-intrinsic-size: none; }
 }
+
+/* Floating actions, adapted from Ren's context menu. */
+.context-menu {
+  position: fixed; z-index: 1200; box-sizing: border-box;
+  width: 228px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px);
+  overflow-y: auto; padding: 6px; border: 1px solid var(--border);
+  border-radius: var(--radius-lg); color: var(--text); background: var(--surface-raised);
+  box-shadow: var(--shadow-float); font: 13px/1.4 var(--font-ui);
+}
+.context-menu button {
+  display: block; width: 100%; min-height: 32px; padding: 6px 8px;
+  text-align: left; background: none; border: 0; border-radius: var(--radius-sm);
+  color: inherit; font: inherit; cursor: pointer;
+}
+.context-menu button:hover, .context-menu button:focus-visible { background: var(--hover); }
+.context-menu button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.context-menu button:disabled { opacity: .4; cursor: default; }
+.context-menu [role="separator"] { height: 1px; margin: 5px 8px; background: var(--border); }
+.context-menu .context-hint { margin: 6px 8px; color: var(--text-muted); font-size: 11px; }
+@media print { .context-menu { display: none !important; } }
