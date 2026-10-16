@@ -57,10 +57,13 @@ export function build(container) {
 /** Mark the last heading that has scrolled past the reading line. */
 export function spy() {
   if (!headings.length || nav.hidden) return;
-  let index = 0;
-  for (let i = 0; i < headings.length; i++) {
-    if (headings[i].getBoundingClientRect().top <= READ_LINE) index = i;
-    else break;
+  // Headings are in document order, so binary-search the last one above the
+  // reading line: a few layout reads even in a document with thousands.
+  let lo = 0, hi = headings.length - 1, index = 0;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (headings[mid].getBoundingClientRect().top <= READ_LINE) { index = mid; lo = mid + 1; }
+    else hi = mid - 1;
   }
   if (index === current) return;
   links[current]?.classList.remove('current');
