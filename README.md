@@ -96,12 +96,18 @@ is forwarded by the single-instance plugin (`open-files` event).
   `Ctrl+S` also works. New files prompt for a location. Browsers without the File
   System Access API download a copy and keep the document marked unsaved.
 - **Find** in the document with `Ctrl+F` (`Enter` / `Shift+Enter` to step, `Esc` to close).
+- **Outline** lists the headings beside the text and marks the section you're
+  reading; click one to jump there. Toolbar button or `Ctrl+Shift+O`.
+- **Text size**: `Ctrl+=` / `Ctrl+-` scale the document and editor text, `Ctrl+0`
+  resets (remembers your choice).
+- **Print** (`Ctrl+P`, or Save as PDF) gives just the rendered document, on light paper.
 - **Reading width** toggles a centered ~74ch column (remembers your choice).
 - On narrow windows, Edit uses the full screen; `Ctrl+E` returns to Preview.
 - **Theme** toggles light/dark (remembers your choice); code blocks are syntax-highlighted.
 - **Remote images** are blocked by default; load them per-doc with one click.
 - Scroll position is remembered per file.
 - **Live-reload**: edit a file in another editor and glance updates in place, keeping your scroll.
+- Saving keeps the file's own line endings (CRLF or LF) and any UTF-8 BOM.
 
 ### Folder mode
 
@@ -112,6 +118,9 @@ Click the **folder** icon (or "Open folder" on the empty screen) to open a direc
   you choose a file.
 - **relative images** (`![](assets/pic.png)`) resolve from disk, including `../` up-paths.
 - **relative `.md` links** (`[see](notes/other.md)`, `[back](../index.md)`) open in-app.
+- **arrow keys** walk the tree and open each file as you land on it, in a single
+  italic preview tab that the next file replaces. Editing it, opening it with a
+  click or `Enter`, or double-clicking the tab keeps it.
 - the panel button toggles the sidebar; the folder is remembered (re-grant on next visit).
 
 Try it on the included [`sample/`](sample/) vault. *(Chromium-only — uses the File
@@ -132,11 +141,16 @@ System Access API.)*
 | Edit + save-back | (beyond Peek) | ✅ |
 | Installable / offline | (beyond Peek) | ✅ |
 | Syntax highlighting + copy button | (beyond Peek) | ✅ |
+| GitHub alerts (`> [!NOTE]`) | (beyond Peek) | ✅ |
+| Mermaid diagrams (loaded on demand) | (beyond Peek) | ✅ |
+| Outline with current section | (beyond Peek) | ✅ |
 | Reading-width toggle | (beyond Peek) | ✅ |
 | In-doc find (`Ctrl+F`) | (beyond Peek) | ✅ |
 | Scroll-position memory | (beyond Peek) | ✅ |
 | Live-reload on external edit | (beyond Peek) | ✅ |
 | Folder mode: tree + relative images/links | (beyond Peek) | ✅ |
+| Tabs | (beyond Peek) | ✅ |
+| Text size, print | (beyond Peek) | ✅ |
 
 ### Demo bits
 
@@ -149,6 +163,8 @@ System Access API.)*
 - [x] Native live-reload (Rust file watcher; web falls back to handle-poll)
 - [x] Folder mode (v0.2) — sidebar tree, relative images + `.md` links, remembered folder
 - [x] Vendored runtime deps — zero CDN, instant startup, fully offline (v0.1.1)
+- [x] Tabs, native Open/Save (v0.3)
+- [x] Outline, Mermaid, GitHub alerts, text size, print, arrow-key file flipping (v0.4)
 - [ ] **Later:** native folder browsing independent of WebView file APIs;
       folder-wide native watch; session restoration
 
@@ -157,6 +173,15 @@ Inline math $E = mc^2$ and a block:
 $$\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}$$
 
 A footnote for good measure.[^1]
+
+> [!TIP]
+> GitHub alerts render as callouts, and Mermaid diagrams load only when a
+> document has one:
+
+```mermaid
+flowchart LR
+  md[markdown] --> it[markdown-it + plugins] --> purify[DOMPurify] --> view[preview]
+```
 
 [^1]: markdown-it matches Markdig's advanced extensions here.
 
@@ -173,6 +198,11 @@ glance/
 │   ├── pipeline.js            # markdown-it + plugins + sanitize
 │   ├── theme.js               # PowerToys light/dark CSS
 │   ├── files.js               # File System Access open/save
+│   ├── text.js                # line endings + BOM kept across edit/save
+│   ├── folder.js              # folder mode: tree, relative paths, saved handle
+│   ├── find.js                # in-doc find (CSS Custom Highlight API)
+│   ├── outline.js             # heading outline + current-section tracking
+│   ├── diagrams.js            # Mermaid, loaded only when a doc has a diagram
 │   ├── icons.js               # Lucide SVGs for toggling buttons
 │   └── platform.js            # Tauri bridge (native launch/file-assoc)
 ├── icons/                     # generated PWA icons + favicon
