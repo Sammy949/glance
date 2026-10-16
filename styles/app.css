@@ -339,7 +339,7 @@ body.theme-dark {
 }
 
 /* ---------------- smoothing ---------------- */
-html { scroll-behavior: smooth; }
+html { scroll-behavior: auto; }
 
 @keyframes glance-pop {
   from { transform: translateX(-50%) translateY(-6px); }
@@ -356,6 +356,7 @@ html { scroll-behavior: smooth; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
   #findbar:not([hidden]) { animation: none; }
   #empty-mark { animation: none; }
 }
@@ -380,7 +381,7 @@ body.has-outline.outline-docked #workspace { margin-right: var(--outline-w); }
 }
 #outline a:hover { color: var(--text); background: var(--hover); }
 #outline a.current { color: var(--interactive-ink); font-weight: 600; }
-#outline a:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+#outline a:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 /* Not docked: the outline slides over the text instead of squeezing it. */
 body:not(.outline-docked) #outline { width: var(--outline-w); }
 
@@ -424,15 +425,15 @@ body.has-sidebar #empty { margin-left: var(--sidebar-w); }
 #file-tree .tree-file.active { background: var(--selected); color: var(--accent); font-weight: 600; }
 body.theme-dark #file-tree .tree-file.active { color: var(--interactive-ink); }
 #file-tree .tree-file.active svg { opacity: 1; }
-#file-tree .tree-dir .chev { display: inline-flex; transition: transform .12s ease; opacity: .5; }
+#file-tree .tree-dir .chev { display: inline-flex; opacity: .5; }
 #file-tree li.open > .tree-dir .chev { transform: rotate(90deg); }
 
 :is(#toolbar button, #tabs button, #file-tree button, #sidebar-head button,
-  #findbar button, #find-input, #empty button, .copy-btn):focus-visible {
+  #findbar button, #find-input, #empty button, #editor, #file-filter, .copy-btn):focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
-#tabs button:focus-visible { outline-offset: -3px; }
+
 
 @media (max-width: 720px) {
   #app-mark span { display: none; }

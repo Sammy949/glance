@@ -49,7 +49,7 @@ function scrollToCurrent() {
   const rect = r.getBoundingClientRect();
   const midY = rect.top + rect.height / 2;
   if (midY < 80 || midY > innerHeight - 80) {
-    scrollTo({ top: Math.max(0, scrollY + rect.top - innerHeight / 2), behavior: 'smooth' });
+    scrollTo({ top: Math.max(0, scrollY + rect.top - innerHeight / 2), behavior: 'instant' });
   }
 }
 
