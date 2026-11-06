@@ -1,7 +1,7 @@
 /* main.js — glance orchestrator: state, rendering, edit mode, files, PWA glue. */
 
 import { matchFilename } from './filter.js';
-import { resizePanel } from './panels.js';
+import { resizePanel, resizeSplit } from './panels.js';
 import { createMenu } from './menu.js';
 import { createRenderer } from './pipeline.js';
 import { applyTheme } from './theme.js';
@@ -874,6 +874,8 @@ resizePanel({ panel: els.sidebar, side: 'right', min: 220, max: 440, initial: 28
   property: '--sidebar-w', key: 'glance.sidebarWidth', onResize: updateOutline });
 resizePanel({ panel: els.outline, side: 'left', min: 180, max: 380, initial: 236,
   property: '--outline-w', key: 'glance.outlineWidth', onResize: updateOutline });
+resizeSplit({ container: els.workspace, before: els.editor, min: 25, max: 75, initial: 50,
+  property: '--editor-split', key: 'glance.editorSplit', label: 'Resize editor and preview' });
 
 /* ---------------- text size ---------------- */
 

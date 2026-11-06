@@ -407,7 +407,8 @@ body.has-outline #findbar { right: calc(var(--outline-w) + 24px); }
 
 body.mode-edit #workspace,
 body.has-tabs.mode-edit #workspace {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  position: relative;
+  grid-template-columns: minmax(0, var(--editor-split, 50%)) minmax(0, 1fr);
   margin-top: var(--chrome-total);
   height: calc(100vh - var(--chrome-total));
   min-height: 0;
@@ -428,6 +429,36 @@ body.has-tabs.mode-edit #content {
   padding: 44px clamp(20px, 4vw, 44px) 80px;
   overflow: auto;
 }
+
+/* The editor | preview handle: only the cursor, and a 2px line while it is in
+   reach, like the sidebar and outline handles. */
+.split-resize {
+  display: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--editor-split, 50%) - 3.5px);
+  width: 7px;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+}
+body.mode-edit .split-resize { display: block; }
+.split-resize::after {
+  content: "";
+  position: absolute;
+  inset: 0 2.5px;
+  border-radius: 1px;
+  background: var(--focus-ring);
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+.split-resize:hover::after,
+.split-resize:focus-visible::after,
+body.resizing .split-resize::after { opacity: 1; }
+.split-resize:focus-visible { outline: none; }
+@media (prefers-reduced-motion: reduce) { .split-resize::after { transition: none; } }
+@media print { .split-resize { display: none !important; } }
 
 /* ---------------- chrome runners ---------------- */
 
@@ -935,6 +966,7 @@ body.settings-open { overflow: hidden; }
     height: 100%;
     padding: 28px 20px 60px;
   }
+  body.mode-edit .split-resize { display: none; }
 }
 
 @media (max-width: 600px) {
