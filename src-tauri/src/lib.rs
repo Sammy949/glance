@@ -8,7 +8,7 @@
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 use tauri_plugin_dialog::DialogExt;
@@ -42,19 +42,23 @@ fn read_opened(path: &PathBuf) -> Option<OpenedFile> {
     })
 }
 
-/// Read every file path passed through an OS file association (skips flags).
-fn files_from_args(args: &[String]) -> Vec<OpenedFile> {
+/// Read every file path passed on the command line or through an OS file
+/// association (skips flags). Relative paths resolve against `base`, the folder
+/// the launch came from, which differs from ours when a second launch forwards
+/// its arguments to the running instance.
+fn files_from_args(args: &[String], base: &Path) -> Vec<OpenedFile> {
     args.iter()
         .skip(1)
         .filter(|a| !a.starts_with('-'))
-        .filter_map(|a| read_opened(&PathBuf::from(a)))
+        .filter_map(|a| read_opened(&base.join(a)))
         .collect()
 }
 
 /// Called by the frontend on startup to pick up launched files.
 #[tauri::command]
 fn get_launch_files(app: tauri::AppHandle) -> Vec<OpenedFile> {
-    let files = files_from_args(&std::env::args().collect::<Vec<_>>());
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let files = files_from_args(&std::env::args().collect::<Vec<_>>(), &cwd);
     for file in &files { allow_file(&app, &PathBuf::from(&file.path)); }
     files
 }
@@ -148,8 +152,8 @@ pub fn run() {
     tauri::Builder::default()
         // Single instance first: a second launch forwards its args instead of
         // opening a new window.
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            let files = files_from_args(&argv);
+        .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+            let files = files_from_args(&argv, Path::new(&cwd));
             for file in &files { allow_file(app, &PathBuf::from(&file.path)); }
             if !files.is_empty() { let _ = app.emit("open-files", files); }
             if let Some(win) = app.get_webview_window("main") {
