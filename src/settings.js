@@ -263,9 +263,6 @@ function aboutPanel(actions) {
           onclick: () => actions.restoreDefaults(),
         }, 'Restore')),
     ]),
-    group('This build', [
-      row('Preview', 'A quiet.md-inspired shell for evaluating a redesign. The desktop app keeps its own chrome.'),
-    ]),
   ];
 }
 
