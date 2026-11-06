@@ -136,8 +136,41 @@ export async function createRenderer() {
     console.warn('[glance] anchor plugin failed to load:', e);
   }
 
+  // Number the top-level blocks (data-block) and keep each one's source, so a
+  // reload can tell which blocks changed (changes.js). Registered last so it
+  // sees the final order, after plugins have moved or added tokens. Tokens
+  // with no source position (alert titles, the footnote list) are skipped.
+  // Rendering only records line ranges; the strings are built when a reload
+  // asks for them, so ordinary renders don't pay for it.
+  let lastSrc = '';
+  let lastMaps = [];
+  let lastBlocks = null;
+  md.core.ruler.push('glance_blocks', (state) => {
+    const maps = [];
+    for (const token of state.tokens) {
+      if (token.level !== 0 || token.nesting < 0 || !token.map) continue;
+      token.attrSet('data-block', String(maps.length / 2));
+      maps.push(token.map[0], token.map[1]);
+    }
+    lastSrc = state.src;
+    lastMaps = maps;
+    lastBlocks = null;
+  });
+  const blockSources = () => {
+    const starts = [0];
+    for (let i = lastSrc.indexOf('\n'); i !== -1; i = lastSrc.indexOf('\n', i + 1)) starts.push(i + 1);
+    starts.push(lastSrc.length + 1);
+    const blocks = [];
+    for (let i = 0; i < lastMaps.length; i += 2) {
+      blocks.push(lastSrc.slice(starts[lastMaps[i]], starts[lastMaps[i + 1]] - 1));
+    }
+    return blocks;
+  };
+
   const sanitize = (html) => DOMPurify.sanitize(html, { ADD_ATTR: ['target', 'rel', 'class', 'id'] });
   return {
+    /** Block sources from the most recent parse, in data-block order. */
+    get lastBlocks() { return (lastBlocks ??= blockSources()); },
     /** Normal documents keep the immediate render path. */
     render(text) {
       largeDocument = text.length > 256 * 1024;

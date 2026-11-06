@@ -45,6 +45,8 @@ export async function renderDiagrams(container, { theme, isCurrent }) {
       if (!isCurrent()) return;
       const figure = document.createElement('figure');
       figure.className = 'mermaid-diagram';
+      // Keep the block number so a changed diagram can be marked (main.js).
+      if (code.dataset.block) figure.dataset.block = code.dataset.block;
       figure.innerHTML = svg;
       pre.replaceWith(figure);
     } catch (e) {

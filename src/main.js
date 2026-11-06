@@ -14,6 +14,7 @@ import * as folder from './folder.js';
 import * as outline from './outline.js';
 import { renderDiagrams, hasDiagrams } from './diagrams.js';
 import { decodeText, encodeText, readFileText } from './text.js';
+import { diffBlocks } from './changes.js';
 
 const els = {
   content: document.getElementById('content'),
@@ -553,12 +554,51 @@ function externalUpdate(raw) {
   if (state.dirty) { flash('File changed on disk — unsaved edits kept'); return; }
   const y = window.scrollY;
   const updatingTab = activeTab;
+  const before = renderer?.lastBlocks ?? [];
   Object.assign(state, { text, savedText: text, eol, bom });
   if (activeTab) Object.assign(activeTab, { text, savedText: text, eol, bom });
   els.editor.value = text;
-  renderPreview().then(() => {
-    if (activeTab === updatingTab && !readerMoved) window.scrollTo({ top: y, left: 0, behavior: 'instant' });
+  const task = renderPreview();
+  task.then(() => {
+    if (activeTab !== updatingTab || task !== renderTask) return;
+    if (!readerMoved) window.scrollTo({ top: y, left: 0, behavior: 'instant' });
+    if (state.mode !== 'edit') markChanges(before, renderer.lastBlocks);
   });
+}
+
+/* Mark the blocks an outside change touched, with a bar in the left gutter.
+ * The marks last until the next render: the next change, or a tab switch. */
+function markChanges(before, after) {
+  if (!before.length) return;
+  const { changed, removed } = diffBlocks(before, after);
+  if (!changed.size && !removed.size) return;
+  const blocks = new Map();
+  for (const el of els.content.querySelectorAll('[data-block]')) {
+    // Fences carry the attribute on <code>; mark the whole <pre>.
+    blocks.set(Number(el.dataset.block), el.tagName === 'CODE' ? el.closest('pre') || el : el);
+  }
+  // A block that scrolls (code, wide tables, diagrams) clips its own gutter
+  // mark, so it gets a plain wrapper to carry the mark instead.
+  const mark = (el, kind) => {
+    if (!el) return;
+    if (el.parentElement?.classList.contains('block-mark')) el = el.parentElement;
+    else if (getComputedStyle(el).overflowX !== 'visible') {
+      const wrap = document.createElement('div');
+      wrap.className = 'block-mark';
+      el.replaceWith(wrap);
+      wrap.append(el);
+      el = wrap;
+    }
+    el.classList.add(kind);
+  };
+  for (const index of changed) mark(blocks.get(index), 'block-changed');
+  for (const index of removed) {
+    if (index < after.length) mark(blocks.get(index), 'block-removed-before');
+    else mark(blocks.get(after.length - 1), 'block-removed-after');
+  }
+  const runs = [...changed, ...removed].sort((a, b) => a - b)
+    .filter((index, i, all) => i === 0 || index > all[i - 1] + 1).length;
+  flash(`Updated from disk: ${runs} ${runs === 1 ? 'change' : 'changes'} marked`);
 }
 
 /* ---------------- folder mode ---------------- */

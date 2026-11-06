@@ -330,6 +330,27 @@ body.theme-dark {
 #content .markdown-alert > :last-child { margin-bottom: 0; }
 
 /* ---------------- mermaid diagrams ---------------- */
+/* What an outside change touched (main.js markChanges): a bar in the left
+ * gutter beside changed blocks, and a short notch where blocks were removed. */
+#content :is(.block-changed, .block-removed-before, .block-removed-after) { position: relative; }
+#content .block-changed::before,
+#content .block-removed-before::before,
+#content .block-removed-after::after {
+  content: ""; position: absolute; left: -14px; width: 3px; border-radius: 2px;
+  background: var(--interactive-ink); pointer-events: none;
+  animation: block-mark-in .4s ease-out;
+}
+#content .block-changed::before { top: 0; bottom: 0; }
+#content .block-removed-before::before { top: -9px; width: 9px; height: 3px; }
+#content .block-removed-after::after { bottom: -9px; width: 9px; height: 3px; }
+@keyframes block-mark-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  #content :is(.block-changed, .block-removed-before)::before, #content .block-removed-after::after { animation: none; }
+}
+@media print {
+  #content .block-changed::before, #content .block-removed-before::before, #content .block-removed-after::after { display: none; }
+}
+
 #content .mermaid-diagram { margin: 16px 0; overflow-x: auto; text-align: center; }
 #content .mermaid-diagram svg { max-width: 100%; height: auto; }
 #content pre.mermaid-error::after {
