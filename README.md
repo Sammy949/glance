@@ -14,12 +14,12 @@ So I pulled that previewer out into its own app, then kept going.
 
 ## What it does
 
-- **Reads markdown properly.** GitHub-style tables and task lists, footnotes, emoji, math, syntax-highlighted code with a copy button, GitHub alerts (`> [!NOTE]`) and Mermaid diagrams. Frontmatter stays hidden.
+- **Reads markdown properly.** GitHub-style tables and task lists, footnotes, emoji, math, syntax-highlighted code with a copy button, GitHub alerts (`> [!NOTE]`) and Mermaid diagrams. Frontmatter stays hidden, or shows as a small table if you turn that on.
 - **Outline** beside the text, with the section you're reading marked. Click a heading to jump there.
-- **Tabs.** Opening a file that's already open just switches to it.
-- **Live reload.** When something else changes the file (your editor, a script, a coding agent), glance updates in place and keeps your scroll position.
+- **Tabs.** Opening a file that's already open just switches to it. The desktop app reopens the tabs you had last time, and lists recent files when nothing is open.
+- **Live reload.** When something else changes the file (your editor, a script, a coding agent), glance updates in place, keeps your scroll position, and marks the parts that changed with a bar in the margin.
 - **Quick edits.** A plain editor next to the preview, saving back to the same file. Drag the divider to give either side more room. Line endings and BOM stay exactly as they were.
-- **Folders.** Open one for a file tree of its markdown. Relative images and links between notes work, and the arrow keys flip through files without piling up tabs.
+- **Folders.** Open one for a file tree of its markdown. Relative images and links between notes work, and the arrow keys flip through files without piling up tabs. The filter box also searches inside the files.
 - Find, text size, a narrower reading column, a theme that follows the system (or stays light or dark), and printing that gives you just the document. All of it is in Settings (`Ctrl+,`).
 
 | Keys | |

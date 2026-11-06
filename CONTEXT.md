@@ -139,7 +139,13 @@ uses the full screen and the Edit/Preview button switches views.
 **Live-reload:** under Tauri, a Rust `notify` watcher on the file's parent dir
 emits `file-changed` (survives editors' atomic write-then-rename); on web,
 polls the FS Access handle every 1.5s + on window focus. Re-renders preserving
-scroll; never clobbers unsaved edits.
+scroll; never clobbers unsaved edits. Change marks: a markdown-it core rule
+(`glance_blocks`, registered last) sets `data-block` on top-level blocks and
+records their line ranges; on an outside change `changes.js` diffs old vs new
+block sources (trim equal ends, then LCS, capped) and `markChanges` adds a
+gutter bar (`block-changed`) or a removal notch. Blocks that scroll (pre,
+tables, diagrams) get a `.block-mark` wrapper because they clip their own
+`::before`. Not shown on first open, after glance's own save, or in edit mode.
 
 **Folder mode (v0.2):** open a directory → collapsible sidebar file tree of
 all markdown; Up/Down/Home/End walk the tree and open files as a single
@@ -148,7 +154,9 @@ tab double-click); relative images resolve from disk to blob URLs (incl. `../`
 up-paths, normalized against the folder root); relative `.md` links navigate
 in-app; folder handle persisted in IndexedDB and restored next session if
 permission still granted (re-grant needs a user gesture). Object URLs revoked
-on each re-render.
+on each re-render. The filter box also searches file contents (`search.js`,
+from 2 characters): results under the tree, text cached per file by
+lastModified, each keystroke abandons the previous run, capped at 200.
 
 **PWA:** installable; offline via SW (same-origin = network-first with cache
 fallback); `.md` file handler via launchQueue; SW disabled under Tauri.
@@ -158,6 +166,19 @@ launched files read in Rust (`get_launch_files`) and handed to the frontend;
 second launch forwards args via single-instance plugin and focuses the window.
 Native Open and Save use the dialog plugin and a Rust-side allowlist of opened
 paths. `withGlobalTauri` keeps the frontend free of npm Tauri dependencies.
+Forwarded relative paths resolve against the second launch's cwd. `open_path`
+reopens remembered paths (markdown/text extensions only) for recent files
+(`glance.recent`, 10) and the last session (`glance.session`, saved on every
+tab-bar render, restored only when launched without files). The Windows NSIS
+installer adds the install dir to the user PATH (`src-tauri/windows/hooks.nsh`,
+guarded against PATH values too long for NSIS strings).
+
+**Settings (`Ctrl+,`):** full-page view (`settings.js`) with Appearance,
+Reading, Shortcuts, About. Theme mode System/Light/Dark (`glance.themeMode`).
+Remote images: the Settings switch is the default for new documents; the More
+menu choice applies to the current document only. Frontmatter card is opt-in
+(`glance.frontmatter`). The editor/preview split is draggable (25-75%,
+`glance.editorSplit`).
 
 **Keyboard:** Ctrl+O open, Ctrl+S save, Ctrl+E edit toggle, Ctrl+F find,
 Ctrl+Shift+O outline, Ctrl+=/-/0 text size, Ctrl+P print, Ctrl+W close tab,
