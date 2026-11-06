@@ -2,7 +2,7 @@
  * being read is marked as you scroll; clicking an entry jumps to it. */
 
 const LEVELS = 'h1, h2, h3, h4';
-const READ_LINE = 130; // px from the top: just below the toolbar + tab bar
+const READ_LINE = 118; // px from the top: just below the preview's quieter chrome
 
 let nav = null;
 let headings = [];

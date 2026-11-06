@@ -1,0 +1,796 @@
+/* shell.css: quiet.md's window, brought to glance.
+
+   Measurements are quiet.md's own (src/sidebar.rs, src/app.rs, src/theme.rs):
+
+   - the window surface is #eff0f1; the sidebar sits straight on it with no
+     panel, border or shadow
+   - only the note stands out: a white plane flush with the window's top,
+     right and bottom edges. The change of value is the only line between
+     note and sidebar (no gutter, radius, border or shadow)
+   - the note's header is 48px: the document's place and name on the left;
+     "more", find and new as 32px buttons on the right
+   - sidebar rows are 30px with radius 9 on a 31px pitch, 14px in from the
+     edge; glyphs are 18px in a 20px box at 60% ink; labels are 13px at 85%
+   - selected is black at 7.2%, hover black at 4.5%: tone, never colour */
+
+/* ---------------- tokens: quiet.md's neutrals ---------------- */
+
+body.theme-light {
+  --window: #eff0f1;
+  --surface: #ffffff;
+  --plane: #ffffff;
+  --plane-edit: #fbfbfb;
+  --surface-raised: #ffffff;
+  --surface-sunken: #eff0f1;
+  --text: #1f2225;
+  --text-muted: #737477;
+  --text-faint: #9c9fa0;
+  --doc-text: #1f2225;
+  --doc-muted: #737477;
+  --hover: rgb(0 0 0 / .045);
+  --hover-strong: rgb(0 0 0 / .06);
+  --pressed: rgb(0 0 0 / .09);
+  --selected: rgb(0 0 0 / .072);
+  --border: rgb(0 0 0 / .08);
+  --hairline: rgb(0 0 0 / .06);
+  --sb-text: rgb(31 34 37 / .85);
+  --sb-section: #333739;
+  --sb-divider: rgb(0 0 0 / .035);
+  --icon: rgb(31 34 37 / .6);
+  --code-bg: #f7f7f7;
+  --code-border: rgb(0 0 0 / .06);
+}
+
+/* quiet.md's dark look is its light look mirrored in lightness: the page
+   goes to #1c1c1c and the window surface lands a step above it. */
+body.theme-dark {
+  --window: #252627;
+  --surface: #1c1c1c;
+  --plane: #1c1c1c;
+  --plane-edit: #202021;
+  --surface-raised: #2c2c2e;
+  --surface-sunken: #252627;
+  --text: #e3e4e5;
+  --text-muted: #a2a3a5;
+  --text-faint: #7c7d80;
+  --doc-text: #dcdddf;
+  --doc-muted: #a2a3a5;
+  --hover: rgb(255 255 255 / .055);
+  --hover-strong: rgb(255 255 255 / .075);
+  --pressed: rgb(255 255 255 / .1);
+  --selected: rgb(255 255 255 / .085);
+  --border: rgb(255 255 255 / .09);
+  --hairline: rgb(255 255 255 / .07);
+  --sb-text: rgb(227 228 229 / .85);
+  --sb-section: #d0d1d3;
+  --sb-divider: rgb(255 255 255 / .05);
+  --icon: rgb(227 228 229 / .6);
+  --code-bg: #252526;
+  --code-border: rgb(255 255 255 / .07);
+}
+
+html, body { background: var(--window); }
+
+/* ---------------- shared ---------------- */
+
+:where(#app-header button, #sidebar button) {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+
+:is(#app-header, #sidebar, #more-menu) :is(button, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* ---------------- the note's header ---------------- */
+
+#app-header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 1000;
+  box-sizing: border-box;
+  height: var(--chrome-h);
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 18px;
+  background: var(--plane);
+  border: 0;
+  font-family: var(--font-ui);
+}
+body.has-sidebar #app-header { left: var(--sidebar-w); }
+/* Before anything is open there is no bar: the empty page runs to the top,
+   and Settings is a bare gear in the bottom-left corner, where the
+   sidebar's Settings row sits once something is open. */
+body:not(.has-tabs) #app-header { background: transparent; }
+body:not(.has-tabs) #app-header #btn-settings {
+  position: fixed;
+  left: 8px;
+  bottom: 10px;
+  z-index: 1000;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+}
+body.has-sidebar #btn-settings { display: none !important; }
+
+#app-header .seg {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  color: var(--icon);
+  line-height: 0;
+  transition: background .12s ease, color .12s ease;
+}
+#app-header .seg[hidden] { display: none; }
+#app-header .seg:hover { background: var(--hover-strong); color: var(--text); }
+#app-header .seg:active { background: var(--pressed); }
+#app-header .seg svg { width: 17px; height: 17px; display: block; }
+#app-header .seg[aria-expanded="true"] { background: var(--hover); color: var(--text); }
+
+/* With the sidebar away, its toggle and a divider lead the header. */
+#btn-sidebar { width: 28px !important; height: 28px !important; margin-left: -6px; }
+#btn-sidebar svg { width: 17px; height: 17px; }
+.hdr-divider { display: none; flex: none; width: 1px; height: 16px; margin: 0 12px; border-radius: 1px; background: var(--hairline); }
+#app-header:has(#btn-sidebar:not([hidden])) .hdr-divider { display: block; }
+/* On a wide window the rail does this job, so the header toggle is for
+   narrow windows only. */
+@media (min-width: 601px) {
+  #btn-sidebar, .hdr-divider { display: none !important; }
+}
+body.has-sidebar #btn-sidebar,
+body.has-sidebar .hdr-divider { display: none !important; }
+
+#doc-title {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  height: 20px;
+  color: var(--text);
+}
+#doc-title .crumbs { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 13px; line-height: 20px; }
+#doc-title .crumbs:not(:empty)::after { content: "/"; margin: 0 7px; color: var(--text-faint); }
+#doc-title .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 14px/20px var(--font-ui); }
+body:not(.has-tabs) #doc-title { display: none; }
+
+#document-bar { display: none !important; }
+
+#toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 0 0 0 16px;
+}
+body:not(.has-tabs) #toolbar > :not(#btn-settings),
+body.has-tabs #btn-settings,
+body.mode-edit #btn-find { display: none; }
+
+#toolbar > #btn-save {
+  display: inline-flex;
+  width: auto;
+  gap: 6px;
+  padding: 0 10px 0 8px;
+  color: var(--interactive-ink);
+  font: 500 13px/1 var(--font-ui);
+}
+#toolbar > #btn-save[hidden] { display: none; }
+
+/* ---------------- the "more" menu ---------------- */
+
+#more-menu {
+  position: fixed;
+  z-index: 1100;
+  box-sizing: border-box;
+  min-width: 228px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  box-shadow: 0 2px 6px rgb(0 0 0 / .1);
+  font-family: var(--font-ui);
+}
+#more-menu[hidden] { display: none; }
+#more-menu button {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 32px;
+  padding: 0 10px 0 6px;
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+#more-menu button[hidden] { display: none; }
+#more-menu button:hover,
+#more-menu button:focus-visible { background: var(--hover); }
+#more-menu button:active { background: var(--pressed); }
+#more-menu .menu-glyph { display: grid; place-items: center; flex: none; width: 20px; height: 20px; margin-right: 9px; color: var(--icon); }
+#more-menu .menu-glyph svg { width: 16px; height: 16px; display: block; }
+#more-menu .menu-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#more-menu kbd { flex: none; margin-left: 16px; color: var(--text-faint); font: 12px var(--font-ui); }
+#more-menu [aria-checked="true"] { color: var(--interactive-ink); font-weight: 500; }
+#more-menu [aria-checked="true"] .menu-glyph { color: var(--interactive-ink); }
+#more-menu [role="separator"] { height: 1px; margin: 5px 6px; border-radius: 1px; background: var(--hairline); }
+#more-menu [role="separator"][hidden] { display: none; }
+
+/* ---------------- sidebar ---------------- */
+
+#sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 800;
+  box-sizing: border-box;
+  width: var(--sidebar-w);
+  display: none;
+  flex-direction: column;
+  background: var(--window);
+  border: 0;
+  font-family: var(--font-ui);
+}
+body.has-sidebar #sidebar { display: flex; }
+
+#sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  height: var(--chrome-h);
+  padding: 0 12px 0 20px;
+  border: 0;
+}
+#sidebar-collapse {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--icon);
+  line-height: 0;
+}
+#sidebar-collapse:hover { background: var(--hover); color: var(--text); }
+#sidebar-collapse svg { width: 17px; height: 17px; display: block; }
+
+#sidebar-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 14px 8px;
+}
+.sb-group[hidden] { display: none; }
+.sb-group + .sb-group { margin-top: 10px; }
+
+/* Section header: the title folds the list; a chevron shows on hover. */
+.sb-section {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 34px;
+  padding: 6px 0 0 4px;
+}
+#sidebar .sb-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 22px;
+  padding: 0 4px;
+  border-radius: 6px;
+  color: var(--sb-section);
+  font: 600 13px/20px var(--font-ui);
+}
+#sidebar .sb-title:hover { background: var(--hover); }
+.sb-title > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 4px; }
+.sb-chev { display: grid; place-items: center; flex: none; color: var(--text-muted); opacity: 0; transition: opacity .12s ease; }
+.sb-chev svg { width: 10px; height: 10px; display: block; stroke-width: 2.5; }
+.sb-section:hover .sb-chev,
+.sb-title:focus-visible .sb-chev,
+.sb-group.folded .sb-chev { opacity: 1; }
+.sb-group.folded .sb-chev { transform: rotate(-90deg); }
+#sidebar .sb-group.folded > :not(.sb-section) { display: none; }
+
+#sidebar .sb-act {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0 4px 0 auto;
+  border-radius: 6px;
+  color: var(--text-muted);
+  line-height: 0;
+}
+#sidebar .sb-act:hover { background: var(--hover); color: var(--text); }
+#sidebar .sb-act svg { width: 16px; height: 16px; display: block; }
+
+/* One row shape for the actions, open documents, files, the filter and Settings. */
+#sidebar-nav button,
+.tab,
+#file-tree button,
+#sidebar-filter,
+#sidebar-settings {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 30px;
+  padding: 0 4px 0 6px;
+  border-radius: 9px;
+  color: var(--sb-text);
+  font: 13px/20px var(--font-ui);
+}
+.tab + .tab,
+#file-tree li + li,
+#file-tree ul ul > li:first-child { margin-top: 1px; }
+:is(#sidebar-nav button, .tab, #file-tree button, #sidebar-settings):hover { background: var(--hover); }
+.tab.active,
+#file-tree .tree-file.active { background: var(--selected); color: var(--text); font-weight: 400; }
+
+/* Open documents: main.js renders these as tabs; here they are rows. */
+#tabs { display: block; height: auto; overflow: visible; }
+.tab { position: relative; max-width: none; margin: 0; border: 0; cursor: pointer; }
+.tab .tab-select {
+  all: unset;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tab .tab-select::before {
+  content: "";
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0 10px 0 1px;
+  background: var(--icon);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z'/%3E%3Cpath d='M14 2v5a1 1 0 0 0 1 1h5'/%3E%3Cpath d='M10 9H8'/%3E%3Cpath d='M16 13H8'/%3E%3Cpath d='M16 17H8'/%3E%3C/svg%3E") center / 18px no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z'/%3E%3Cpath d='M14 2v5a1 1 0 0 0 1 1h5'/%3E%3Cpath d='M10 9H8'/%3E%3Cpath d='M16 13H8'/%3E%3Cpath d='M16 17H8'/%3E%3C/svg%3E") center / 18px no-repeat;
+}
+.tab .tab-close {
+  all: unset;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.tab .tab-close:hover { background: var(--hover-strong); color: var(--text); }
+.tab .tab-close svg { width: 13px; height: 13px; }
+.tab:not(:hover):not(:focus-within) .tab-close:not(.dirty) { opacity: 0; }
+.tab .tab-select:focus-visible { outline: 0; }
+.tab:has(.tab-select:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+
+/* The folder: a filter row, then the tree. */
+#sidebar-filter { margin-bottom: 1px; cursor: text; }
+#sidebar-filter:hover { background: var(--hover); }
+#sidebar-filter > svg { flex: none; width: 17px; height: 17px; margin: 0 10px 0 2px; color: var(--icon); }
+#sidebar-filter:focus-within { background: var(--plane); outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+#file-filter {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  color: var(--text);
+  font: 13px var(--font-ui);
+}
+#file-filter::placeholder { color: var(--text-muted); }
+
+#file-tree { padding: 0; overflow: visible; font-size: 13px; }
+#file-tree ul { margin: 0; padding: 0; list-style: none; }
+#file-tree ul ul { margin-left: 18px; }
+#file-tree button { gap: 0; cursor: pointer; }
+#file-tree button svg { flex: none; width: 18px; height: 18px; margin: 0 10px 0 1px; color: var(--icon); opacity: 1; stroke-width: 1.75; }
+#file-tree .tree-dir .chev { display: grid; place-items: center; width: 14px; margin: 0 -2px 0 -4px; opacity: 1; color: var(--text-muted); }
+#file-tree .tree-dir .chev svg { width: 12px; height: 12px; margin: 0; color: currentColor; }
+#file-tree li.open > .tree-dir .chev { transform: rotate(90deg); }
+#file-tree span:not(.chev) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#file-tree strong { font-weight: 600; color: var(--text); }
+#file-tree button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+
+/* Footer: one row under a short line, mirroring the toggle at the top. */
+#sidebar-foot { position: relative; flex: none; padding: 6px 14px 10px; }
+#sidebar-foot::before {
+  content: "";
+  position: absolute;
+  inset: 0 17px auto;
+  height: 1px;
+  border-radius: 1px;
+  background: var(--sb-divider);
+}
+#sidebar-settings svg { flex: none; width: 18px; height: 18px; margin: 0 10px 0 1px; color: var(--icon); }
+
+/* The width handle: only the cursor, and a 2px line while it is in reach. */
+.sidebar-resize { top: 0; }
+.panel-resize::after {
+  content: "";
+  position: absolute;
+  inset: 0 2.5px;
+  border-radius: 1px;
+  background: var(--focus-ring);
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+.panel-resize:hover::after,
+body.resizing .panel-resize::after { opacity: 1; }
+
+/* The actions, Manus's top block: icon, label, and a shortcut if it has one. */
+#sidebar-nav { display: flex; flex-direction: column; gap: 1px; flex: none; padding: 2px 14px 8px; }
+#sidebar-nav button { cursor: pointer; }
+#sidebar-nav svg { flex: none; width: 18px; height: 18px; margin: 0 10px 0 1px; color: var(--icon); stroke-width: 1.75; }
+#sidebar-nav span { flex: 1; min-width: 0; }
+#sidebar-nav kbd { flex: none; margin-right: 6px; color: var(--text-faint); font: 11.5px var(--font-ui); }
+#sidebar-list { padding-top: 0; }
+
+/* ---------------- the rail: the sidebar, collapsed ---------------- */
+
+:root { --rail-w: 52px; }
+#rail {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 800;
+  box-sizing: border-box;
+  width: var(--rail-w);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 0 10px;
+  background: var(--window);
+}
+@media (min-width: 601px) {
+  body:not(.has-sidebar) #rail:not([hidden]) { display: flex; }
+  body:not(.has-sidebar):has(#rail:not([hidden])) #app-header { left: var(--rail-w); }
+  body:not(.has-sidebar):has(#rail:not([hidden])) :is(#workspace, #empty) { margin-left: var(--rail-w); }
+  body:has(#rail:not([hidden])) #btn-settings { display: none !important; }
+}
+#rail button {
+  all: unset;
+  box-sizing: border-box;
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  color: var(--icon);
+  cursor: pointer;
+}
+#rail button[hidden] { display: none; }
+#rail button:hover { background: var(--hover); color: var(--text); }
+#rail button:active { background: var(--pressed); }
+#rail button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+#rail svg { width: 18px; height: 18px; display: block; stroke-width: 1.75; }
+/* The mark sits where the sidebar's brand sits, and on hover or keyboard
+   focus becomes the control it really is. */
+#rail-open { margin-bottom: 6px; }
+#rail-open img { display: block; width: 22px; height: 22px; }
+#rail-open svg { display: none; }
+#rail-open:is(:hover, :focus-visible) img { display: none; }
+#rail-open:is(:hover, :focus-visible) svg { display: block; }
+.rail-rule { flex: none; width: 20px; height: 1px; margin: 7px 0; border-radius: 1px; background: var(--hairline); }
+.rail-fill { flex: 1; }
+#rail-docs.unsaved::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--interactive-ink);
+  box-shadow: 0 0 0 2px var(--window);
+}
+
+/* ---------------- the note ---------------- */
+
+#workspace { background: var(--plane); }
+
+/* ---------------- outline ---------------- */
+
+#outline {
+  top: var(--chrome-h);
+  box-sizing: border-box;
+  width: var(--outline-w);
+  padding: 30px 14px 32px 6px;
+  background: var(--plane);
+  border: 0;
+  font: 13px/1.4 var(--font-ui);
+}
+.outline-resize { top: var(--chrome-h); }
+#outline a {
+  display: block;
+  padding: 6px 10px 6px calc(10px + var(--depth, 0) * 12px);
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+#outline a:hover { background: var(--hover); color: var(--text); }
+#outline a.current { color: var(--text); font-weight: 600; }
+
+/* ---------------- settings: the same sidebar, then the page ---------------- */
+
+#settings-page { background: var(--plane); }
+#settings-page .settings-rail {
+  width: var(--sidebar-w);
+  box-sizing: border-box;
+  padding: var(--chrome-h) 14px 10px;
+  background: var(--window);
+  border: 0;
+}
+#settings-page .settings-rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--chrome-h);
+  margin: calc(-1 * var(--chrome-h)) -2px 0 6px;
+  padding: 0;
+}
+#settings-page .settings-rail-head .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font: 600 14px/1 var(--font-ui);
+  letter-spacing: -.005em;
+  user-select: none;
+}
+#settings-page .settings-rail-head img { display: block; width: 20px; height: 20px; }
+#settings-page :is(.settings-rail-toggle, .settings-rail-mark) {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--icon);
+  cursor: pointer;
+}
+#settings-page :is(.settings-rail-toggle, .settings-rail-mark):hover { background: var(--hover); color: var(--text); }
+#settings-page :is(.settings-rail-toggle, .settings-rail-mark):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+#settings-page .settings-rail-head .settings-glyph svg { width: 17px; height: 17px; display: block; stroke-width: 2; }
+#settings-page .settings-rail-mark { display: none; }
+
+/* Collapsed: the document rail's shape. 52px wide, 36px icon cells, the mark
+   on top turning into the open-sidebar icon, Back as an icon at the foot. */
+@media (min-width: 641px) {
+  #settings-page.rail-collapsed .settings-rail { width: var(--rail-w); padding: var(--chrome-h) 8px 10px; }
+  #settings-page.rail-collapsed .settings-rail-head { justify-content: center; margin: calc(-1 * var(--chrome-h) + 6px) 0 6px; height: 36px; }
+  #settings-page.rail-collapsed .settings-rail-head :is(.brand, .settings-rail-toggle) { display: none; }
+  #settings-page.rail-collapsed .settings-rail-mark { display: grid; width: 36px; height: 36px; border-radius: 9px; }
+  #settings-page.rail-collapsed .settings-rail-mark img { width: 22px; height: 22px; }
+  #settings-page.rail-collapsed .settings-rail-mark .settings-glyph { display: none; }
+  #settings-page.rail-collapsed .settings-rail-mark:is(:hover, :focus-visible) img { display: none; }
+  #settings-page.rail-collapsed .settings-rail-mark:is(:hover, :focus-visible) .settings-glyph { display: grid; }
+  #settings-page.rail-collapsed .settings-nav { align-items: center; padding-top: 0; gap: 2px; }
+  #settings-page.rail-collapsed :is(.settings-nav-item, .settings-back) { width: 36px; height: 36px; padding: 0; justify-content: center; }
+  #settings-page.rail-collapsed .settings-nav-item .settings-glyph { margin: 0; }
+  #settings-page.rail-collapsed :is(.settings-nav-label, .settings-back-label, .settings-back kbd) { display: none; }
+  #settings-page.rail-collapsed .settings-rail-foot { display: flex; justify-content: center; margin: auto -8px -10px; padding: 0 8px 10px; }
+  #settings-page.rail-collapsed .settings-rail-foot::before { display: none; }
+}
+#settings-page .settings-nav { gap: 1px; padding-top: 8px; }
+#settings-page .settings-nav-item {
+  height: 30px;
+  gap: 0;
+  padding: 0 4px 0 6px;
+  border-radius: 9px;
+  color: var(--sb-text);
+  font: 13px/20px var(--font-ui);
+}
+#settings-page .settings-nav-item .settings-glyph { width: 20px; justify-content: center; margin-right: 9px; color: var(--icon); }
+#settings-page .settings-nav-item:hover { background: var(--hover); color: var(--sb-text); }
+#settings-page .settings-nav-item.active { background: var(--selected); color: var(--text); font-weight: 400; }
+#settings-page .settings-nav-item.active .settings-glyph { color: var(--icon); }
+#settings-page .settings-rail-foot { position: relative; margin: auto -14px -10px; padding: 6px 14px 10px; border: 0; }
+#settings-page .settings-rail-foot::before {
+  content: "";
+  position: absolute;
+  inset: 0 17px auto;
+  height: 1px;
+  border-radius: 1px;
+  background: var(--sb-divider);
+}
+#settings-page .settings-back {
+  box-sizing: border-box;
+  width: 100%;
+  height: 30px;
+  gap: 10px;
+  padding: 0 8px 0 7px;
+  border-radius: 9px;
+  color: var(--sb-text);
+  font: 13px/20px var(--font-ui);
+}
+#settings-page .settings-back svg { color: var(--icon); }
+#settings-page .settings-back:hover { background: var(--hover); }
+#settings-page .settings-card { background: var(--plane); border-color: var(--border); }
+body.theme-dark #settings-page .settings-card { background: var(--surface-raised); }
+
+/* Appearance: the sample is a band inside the one card, like a sheet on a desk. */
+.settings-card > .settings-sample {
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  background: var(--window);
+}
+
+/* ---------------- narrow ---------------- */
+
+@media (max-width: 600px) {
+  body.has-sidebar #app-header { left: 0; }
+  #sidebar { z-index: 1050; box-shadow: 1px 0 4px rgb(0 0 0 / .1); }
+  #toolbar > #btn-save span { display: none; }
+  #toolbar > #btn-save { width: 32px; padding: 0; justify-content: center; }
+  #settings-page .settings-rail { width: auto; padding: 8px 10px; }
+  #settings-page .settings-rail-head { display: none; }
+  #settings-page .settings-nav { padding-top: 0; }
+  #settings-page .settings-rail-foot { align-self: center; margin: 0; padding: 0; }
+  #settings-page .settings-rail-foot::before { display: none; }
+  #settings-page .settings-back { width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app-header .seg, .sb-chev, .panel-resize::after { transition: none; }
+}
+
+@media print {
+  #more-menu { display: none !important; }
+}
+
+/* ---------------- sidebar brand ---------------- */
+
+/* With the sidebar open: [toggle] [mark] glance, as one left-aligned run. */
+#sidebar-head .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font: 600 14px/1 var(--font-ui);
+  letter-spacing: -.005em;
+  user-select: none;
+}
+#sidebar-head .brand img { display: block; width: 20px; height: 20px; }
+
+/* ---------------- document menu: submenus ---------------- */
+
+#more-menu { min-width: 248px; }
+#more-menu .menu-more { display: grid; place-items: center; flex: none; margin-left: 12px; color: var(--text-faint); }
+#more-menu .menu-more svg { width: 12px; height: 12px; display: block; }
+#more-menu button.open { background: var(--hover); }
+
+#more-sub {
+  position: fixed;
+  z-index: 1101;
+  box-sizing: border-box;
+  min-width: 150px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  box-shadow: 0 2px 6px rgb(0 0 0 / .1);
+  font-family: var(--font-ui);
+}
+#more-sub[hidden] { display: none; }
+#more-sub > button {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+#more-sub > button:hover,
+#more-sub > button:focus-visible { background: var(--hover); }
+
+/* Page width: quiet.md's three cards, each a tiny page at its measure. */
+#more-sub.width-panel { padding: 14px 18px 18px; }
+.width-caption { margin: 0 0 14px 1px; color: var(--text-muted); font: 12px/18px var(--font-ui); }
+.width-cards { display: flex; gap: 12px; }
+.width-card {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 64px;
+  height: 66px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font: 12px/18px var(--font-ui);
+  cursor: pointer;
+  transition: border-color .12s ease;
+}
+.width-card:hover { border-color: var(--interactive-ink); }
+.width-card:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.width-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  box-sizing: border-box;
+  width: 52px;
+  height: 28px;
+  margin-bottom: 6px;
+  padding-top: 7px;
+  border-radius: 2px;
+  background: var(--window);
+}
+.width-page i { display: block; flex: none; height: 2px; border-radius: 1px; background: var(--text-faint); }
+.width-standard i { width: 20px; }
+.width-wide i { width: 28px; }
+.width-full i { width: 38px; }
+.width-card[aria-checked="true"] { border-color: var(--interactive-ink); color: var(--interactive-ink); }
+.width-card[aria-checked="true"] .width-page { background: color-mix(in srgb, var(--interactive-ink) 12%, var(--plane)); }
+.width-card[aria-checked="true"] .width-page i { background: var(--interactive-ink); }
+
+/* Wide: the reading width with a longer measure. */
+body.reading-width.page-wide:not(.mode-edit) #content { max-width: 88ch; }
+
+/* ---------------- document info ---------------- */
+
+#doc-info {
+  box-sizing: border-box;
+  width: min(380px, calc(100vw - 32px));
+  padding: 0 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: 0 2px 6px rgb(0 0 0 / .12);
+  font-family: var(--font-ui);
+}
+#doc-info::backdrop { background: rgb(0 0 0 / .18); }
+.info-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 12px 6px 20px; }
+.info-head h2 { margin: 0; padding: 0; border: 0; font: 600 15px/22px var(--font-ui); }
+.info-close {
+  all: unset;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--icon);
+  cursor: pointer;
+}
+.info-close:hover { background: var(--hover); color: var(--text); }
+.info-close:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.info-close svg { width: 16px; height: 16px; }
+.info-group { padding: 8px 20px 4px; }
+.info-group h3 { padding: 0; border: 0; margin: 0 0 4px; color: var(--text-muted); font: 600 12px/18px var(--font-ui); }
+.info-group dl { margin: 0; }
+.info-row { display: flex; justify-content: space-between; gap: 24px; padding: 5px 0; font-size: 13px; line-height: 20px; }
+.info-row dt { flex: none; color: var(--text-muted); }
+.info-row dd { min-width: 0; margin: 0; overflow-wrap: anywhere; text-align: right; font-variant-numeric: tabular-nums; }
+
+#settings-page .settings-back-label { flex: 1; text-align: left; }

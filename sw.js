@@ -3,13 +3,18 @@
  * CDN is cached at runtime (stale-while-revalidate) so glance works offline
  * after the first successful load. Bump CACHE to invalidate. */
 
-const CACHE = 'glance-v12';
+const CACHE = 'glance-v13';
 
 const SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './styles/app.css',
+  './styles/preview.css',
+  './styles/shell.css',
+  './src/shell.js',
+  './src/settings.js',
+  './src/preview.js',
   './src/main.js',
   './src/menu.js',
   './src/panels.js',

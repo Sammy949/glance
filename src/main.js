@@ -4,7 +4,8 @@ import { matchFilename } from './filter.js';
 import { resizePanel } from './panels.js';
 import { createMenu } from './menu.js';
 import { createRenderer } from './pipeline.js';
-import { initTheme, toggleTheme, applyTheme } from './theme.js';
+import { applyTheme } from './theme.js';
+import { createSettings } from './settings.js';
 import { pickFile, saveFile, fromDrop, fromHandle } from './files.js';
 import { ICONS } from './icons.js';
 import { isTauri, initNativeLaunch, watchFile, pickNativeDocument, saveNativeDocument } from './platform.js';
@@ -26,7 +27,7 @@ const els = {
   btnNew2: document.getElementById('btn-new-2'),
   btnSave: document.getElementById('btn-save'),
   btnEdit: document.getElementById('btn-edit'),
-  btnTheme: document.getElementById('btn-theme'),
+  btnSettings: document.getElementById('btn-settings'),
   btnImages: document.getElementById('btn-images'),
   btnWidth: document.getElementById('btn-width'),
   btnOutline: document.getElementById('btn-outline'),
@@ -60,6 +61,7 @@ const state = {
   imagesAllowed: false,
   dirty: false,
   theme: 'light',
+  themeMode: 'system',
   readingWidth: false,
   root: null,          // folder-mode root directory handle
   docRoot: null,       // directory associated with this document
@@ -148,10 +150,12 @@ function renderTabs() {
 els.tabs.addEventListener('keydown', (event) => {
   if (event.target.getAttribute('role') !== 'tab') return;
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Delete'].includes(event.key)) return;
-  const current = tabs.indexOf(activeTab);
+  // Act on the tab that has focus, not whichever tab happens to be active.
+  const focusedTab = event.target.closest('.tab')?._tab || activeTab;
+  const current = tabs.indexOf(focusedTab);
   if (current < 0) return;
   event.preventDefault();
-  if (event.key === 'Delete') { closeTab(activeTab); return; }
+  if (event.key === 'Delete') { closeTab(focusedTab); return; }
   const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
     : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
   activateTab(tabs[next]).then(() => els.tabs.querySelector('.active .tab-select')?.focus());
@@ -166,8 +170,48 @@ const store = {
 let renderer = null;
 const rendererReady = createRenderer().then((r) => (renderer = r));
 
-state.theme = initTheme();
+/* Theme mode: System / Light / Dark. `glance.themeMode` is the source of
+ * truth; the old `glance.theme` key is only read once to migrate. */
+const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+let settings = null;
+
+function resolveTheme(mode = state.themeMode) {
+  return mode === 'system' ? (darkQuery.matches ? 'dark' : 'light') : mode;
+}
+
+function redrawForTheme() {
+  if (els.workspace.hidden || !hasDiagrams(els.content)) return;
+  const y = window.scrollY;
+  renderPreview().then(() => window.scrollTo({ top: y, left: 0, behavior: 'instant' }));
+}
+
+function syncSettings() {
+  settings?.sync();
+}
+
+function applyThemeMode(mode, { persist = true } = {}) {
+  const previous = state.theme;
+  state.themeMode = mode;
+  state.theme = resolveTheme(mode);
+  applyTheme(state.theme, { persist: false });
+  if (persist) store.set('glance.themeMode', mode);
+  if (previous !== state.theme) redrawForTheme();
+  syncSettings();
+}
+
+const legacyTheme = (() => {
+  try { return localStorage.getItem('glance.theme'); } catch { return null; }
+})();
+state.themeMode = store.get('glance.themeMode',
+  legacyTheme === 'light' || legacyTheme === 'dark' ? legacyTheme : 'system');
+state.theme = resolveTheme();
+applyTheme(state.theme, { persist: false });
+darkQuery.addEventListener?.('change', () => {
+  if (state.themeMode === 'system') applyThemeMode('system', { persist: false });
+});
+
 state.readingWidth = store.get('glance.readingWidth', true);
+state.imagesAllowed = store.get('glance.remoteImages', false);
 
 /* ---------------- rendering ---------------- */
 
@@ -336,6 +380,14 @@ function updateImagesButton() {
   els.btnImages.setAttribute('aria-label', label);
 }
 
+function setImagesAllowed(allowed) {
+  state.imagesAllowed = !!allowed;
+  if (activeTab) activeTab.imagesAllowed = state.imagesAllowed;
+  store.set('glance.remoteImages', state.imagesAllowed);
+  updateImages();
+  syncSettings();
+}
+
 /* ---------------- document lifecycle ---------------- */
 
 /* A preview tab (opened by flipping through the sidebar with the arrow keys)
@@ -359,7 +411,8 @@ async function loadDoc(doc, { preview = false } = {}) {
     id: nextTabId++, name: doc.name || 'untitled.md',
     key: doc.path || doc.key || doc.name || null,
     path: doc.path || null, text, savedText: text, eol, bom, handle: doc.handle || null,
-    mode: doc.mode || 'read', imagesAllowed: false, dirty: false,
+    mode: doc.mode || 'read',
+    imagesAllowed: store.get('glance.remoteImages', false), dirty: false,
     docRoot: doc.docRoot || null, relDir: doc.relDir ?? null,
     scrollY: doc.key ? scrollStore[doc.key] || 0 : 0, previewY: 0, editorY: 0,
     preview,
@@ -517,6 +570,7 @@ async function useFolder(dir) {
   folder.saveHandle('lastDir', dir);
   els.folderName.textContent = dir.name;
   els.folderName.title = dir.name;
+  dispatchEvent(new CustomEvent('glance:folder', { detail: { name: dir.name } }));
   renderTree(tree);
   document.body.classList.add('has-sidebar');
   els.sidebar.hidden = false;
@@ -696,6 +750,7 @@ function closeFolder() {
   els.btnSidebar.hidden = true;
   state.root = null;
   folder.saveHandle('lastDir', null);
+  dispatchEvent(new CustomEvent('glance:folder', { detail: { name: null } }));
   updateOutline();
 }
 
@@ -712,6 +767,7 @@ function newDoc() {
 function updateTitle() {
   const flag = state.dirty ? '• ' : '';
   document.title = state.name ? `${flag}${state.name} — glance` : 'glance';
+  dispatchEvent(new CustomEvent('glance:doc', { detail: { name: state.name, key: state.key } }));
   if (activeTab) {
     activeTab.dirty = state.dirty;
     activeTab.name = state.name;
@@ -743,12 +799,17 @@ function updateModeButton() {
 function applyReadingWidth() {
   document.body.classList.toggle('reading-width', state.readingWidth);
   els.btnWidth.setAttribute('aria-pressed', String(state.readingWidth));
+  syncSettings();
+}
+
+function setReadingWidth(on) {
+  state.readingWidth = !!on;
+  store.set('glance.readingWidth', state.readingWidth);
+  applyReadingWidth();
 }
 
 function toggleReadingWidth() {
-  state.readingWidth = !state.readingWidth;
-  store.set('glance.readingWidth', state.readingWidth);
-  applyReadingWidth();
+  setReadingWidth(!state.readingWidth);
 }
 
 /* ---------------- outline ---------------- */
@@ -778,15 +839,19 @@ function updateOutline() {
   els.outline.hidden = !show;
   document.body.classList.toggle('has-outline', show);
   if (show) outline.spy();
+  syncSettings();
+}
+
+function setOutlinePreference(on) {
+  outlinePinned = !!on;
+  store.set('glance.outline', outlinePinned);
+  if (!outlineDocked) outlineOverlay = outlinePinned;
+  updateOutline();
 }
 
 function toggleOutline() {
   if (els.btnOutline.hidden) return;
-  if (outlineDocked) {
-    outlinePinned = !outlinePinned;
-    store.set('glance.outline', outlinePinned);
-  } else outlineOverlay = !outlineOverlay;
-  updateOutline();
+  setOutlinePreference(els.outline.hidden);
 }
 
 outline.init(els.outline, () => {
@@ -797,9 +862,9 @@ addEventListener('resize', () => {
   if (!resizeFrame) resizeFrame = requestAnimationFrame(() => { resizeFrame = 0; updateOutline(); });
 });
 
-resizePanel({ panel: els.sidebar, side: 'right', min: 200, max: 420, initial: 264,
+resizePanel({ panel: els.sidebar, side: 'right', min: 220, max: 440, initial: 280,
   property: '--sidebar-w', key: 'glance.sidebarWidth', onResize: updateOutline });
-resizePanel({ panel: els.outline, side: 'left', min: 180, max: 360, initial: 232,
+resizePanel({ panel: els.outline, side: 'left', min: 180, max: 380, initial: 236,
   property: '--outline-w', key: 'glance.outlineWidth', onResize: updateOutline });
 
 /* ---------------- text size ---------------- */
@@ -809,9 +874,10 @@ let zoom = store.get('glance.zoom', 1);
 
 function applyZoom() {
   document.documentElement.style.setProperty('--zoom', String(zoom));
+  syncSettings();
 }
 
-function setZoom(next) {
+function setZoom(next, { silent = false } = {}) {
   const clamped = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next)) * 10) / 10;
   if (clamped === zoom) return;
   // Keep the reader's place: pin the first block at the top of the view.
@@ -822,7 +888,7 @@ function setZoom(next) {
   store.set('glance.zoom', zoom);
   applyZoom();
   if (pin) window.scrollBy({ top: pin.getBoundingClientRect().top - before, left: 0, behavior: 'instant' });
-  flash(`Text size ${Math.round(zoom * 100)}%`);
+  if (!silent) flash(`Text size ${Math.round(zoom * 100)}%`);
 }
 
 /* ---------------- scroll memory ---------------- */
@@ -1018,19 +1084,40 @@ els.btnNew.onclick = newDoc;
 els.btnNew2.onclick = newDoc;
 els.btnSave.onclick = save;
 els.btnEdit.onclick = toggleMode;
-els.btnImages.onclick = () => { state.imagesAllowed = !state.imagesAllowed; updateImages(); };
-els.btnTheme.onclick = () => {
-  state.theme = toggleTheme(state.theme);
-  // Diagrams are drawn for one theme; redraw them for the other.
-  if (!els.workspace.hidden && hasDiagrams(els.content)) {
-    const y = window.scrollY;
-    renderPreview().then(() => window.scrollTo({ top: y, left: 0, behavior: 'instant' }));
-  }
-};
+els.btnImages.onclick = () => setImagesAllowed(!state.imagesAllowed);
 els.btnWidth.onclick = toggleReadingWidth;
 els.btnOutline.onclick = toggleOutline;
 applyReadingWidth();
 applyZoom();
+
+/* settings: one surface, two shells (see settings.js) */
+settings = createSettings({
+  getState: () => ({
+    themeMode: state.themeMode,
+    zoom,
+    readingWidth: state.readingWidth,
+    imagesAllowed: state.imagesAllowed,
+    outlineOn: !els.outline.hidden,
+    outlineAvailable: !els.btnOutline.hidden,
+  }),
+  actions: {
+    setThemeMode: (mode) => applyThemeMode(mode),
+    setZoom: (value) => setZoom(value, { silent: true }),
+    setReadingWidth,
+    setImagesAllowed,
+    setOutline: setOutlinePreference,
+    restoreDefaults: () => {
+      applyThemeMode('system');
+      zoom = 1;
+      store.set('glance.zoom', 1);
+      applyZoom();
+      setReadingWidth(true);
+      setImagesAllowed(false);
+      setOutlinePreference(true);
+    },
+  },
+});
+els.btnSettings.onclick = () => settings.toggle();
 
 /* folder-mode controls */
 els.btnFolder.onclick = openFolder;
@@ -1075,6 +1162,8 @@ addEventListener('keydown', (e) => {
   const mod = e.ctrlKey || e.metaKey;
   if (!mod) return;
   const k = e.key.toLowerCase();
+  if (k === ',') { e.preventDefault(); settings?.toggle(); return; }
+  if (settings?.isOpen()) return;
   if (k === 'o' && e.shiftKey) { e.preventDefault(); toggleOutline(); }
   else if (k === 'o') { e.preventDefault(); openFile(); }
   else if (k === 's') { e.preventDefault(); save(); }
@@ -1131,13 +1220,23 @@ if ('launchQueue' in window && 'setConsumer' in window.launchQueue) {
   });
 }
 
+/* ?demo (see demo.js): load a sample file into the demo sidebar */
+addEventListener('glance:open-sample', (event) => {
+  const path = event.detail?.path;
+  if (!path) return;
+  fetch(path)
+    .then((response) => (response.ok ? response.text() : Promise.reject(new Error('fetch failed'))))
+    .then((text) => loadDoc({ name: path.split('/').pop(), text, handle: null, key: path }))
+    .catch(() => flash('Could not open sample'));
+});
+
 /* ?file=README.md deep-link (handy for the demo / a bookmarkable viewer) */
 const qFile = new URLSearchParams(location.search).get('file');
 if (qFile) {
   fetch(qFile)
     .then((r) => (r.ok ? r.blob() : Promise.reject(new Error('fetch failed'))))
     .then(readFileText)
-    .then((text) => loadDoc({ name: qFile.split('/').pop(), text, handle: null }))
+    .then((text) => loadDoc({ name: qFile.split('/').pop(), text, handle: null, key: qFile }))
     .catch(() => {});
 }
 
