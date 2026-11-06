@@ -18,9 +18,9 @@ So I pulled that previewer out into its own app, then kept going.
 - **Outline** beside the text, with the section you're reading marked. Click a heading to jump there.
 - **Tabs.** Opening a file that's already open just switches to it.
 - **Live reload.** When something else changes the file (your editor, a script, a coding agent), glance updates in place and keeps your scroll position.
-- **Quick edits.** A plain editor next to the preview, saving back to the same file. Line endings and BOM stay exactly as they were.
+- **Quick edits.** A plain editor next to the preview, saving back to the same file. Drag the divider to give either side more room. Line endings and BOM stay exactly as they were.
 - **Folders.** Open one for a file tree of its markdown. Relative images and links between notes work, and the arrow keys flip through files without piling up tabs.
-- Find, text size, a narrower reading column, light and dark, and printing that gives you just the document.
+- Find, text size, a narrower reading column, a theme that follows the system (or stays light or dark), and printing that gives you just the document. All of it is in Settings (`Ctrl+,`).
 
 | Keys | |
 | --- | --- |
@@ -32,6 +32,7 @@ So I pulled that previewer out into its own app, then kept going.
 | `Ctrl+=` `Ctrl+-` `Ctrl+0` | Text size |
 | `Ctrl+P` | Print |
 | `Ctrl+Tab` `Ctrl+W` | Next tab, close tab |
+| `Ctrl+,` | Settings |
 
 ## Install
 
