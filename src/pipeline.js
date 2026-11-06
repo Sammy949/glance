@@ -135,11 +135,18 @@ export async function createRenderer() {
       largeDocument = true;
       const env = {};
       const tokens = md.parse(stripFrontmatter(text), env);
+      // Raw HTML can open a container in one token and close it much later.
+      // Sanitize it together so a chunk boundary cannot change its structure.
+      if (tokens.some((token) => token.type === 'html_block' && token.level === 0)) {
+        yield sanitize(md.renderer.render(tokens, md.options, env));
+        return;
+      }
       let start = 0;
       let depth = 0;
       for (let end = 0; end < tokens.length; end++) {
         depth += tokens[end].nesting;
         if (depth === 0 && (end - start >= (start === 0 ? 400 : 1600) || end === tokens.length - 1)) {
+          largeDocument = true;
           yield sanitize(md.renderer.render(tokens.slice(start, end + 1), md.options, env));
           start = end + 1;
         }

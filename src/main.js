@@ -172,7 +172,22 @@ state.readingWidth = store.get('glance.readingWidth', true);
 /* ---------------- rendering ---------------- */
 
 let renderVersion = 0;
-async function renderPreview() {
+let renderTask = Promise.resolve();
+let readerMoved = false;
+for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) {
+  addEventListener(event, () => { readerMoved = true; }, { passive: true });
+}
+function renderPreview() {
+  renderTask = renderDocument();
+  return renderTask;
+}
+async function printDocument() {
+  if (els.content.getAttribute('aria-busy') === 'true') flash('Preparing document for print…');
+  let pending;
+  do { pending = renderTask; await pending; } while (pending !== renderTask);
+  if (activeTab) window.print();
+}
+async function renderDocument() {
   const version = ++renderVersion;
   await rendererReady;
   if (version !== renderVersion) return;
@@ -181,6 +196,10 @@ async function renderPreview() {
   revokeObjectUrls();
   const isCurrent = () => version === renderVersion && tab === activeTab;
   const large = state.text.length > 256 * 1024 && renderer.chunks;
+  const restoreY = tab.scrollY;
+  readerMoved = false;
+  outlineCount = 0;
+  updateOutline();
   els.content.classList.toggle('large-document', !!large);
   els.content.replaceChildren();
   find.setContainer(els.content);
@@ -221,6 +240,7 @@ async function renderPreview() {
   }
   if (!isCurrent()) return;
   els.content.setAttribute('aria-busy', 'false');
+  if (large && !readerMoved) window.scrollTo({ top: restoreY, behavior: 'instant' });
   outlineCount = outline.build(els.content);
   updateOutline();
   updateImagesButton();
@@ -471,10 +491,13 @@ function externalUpdate(raw) {
   if (text === state.text && eol === state.eol && bom === state.bom) return;
   if (state.dirty) { flash('File changed on disk — unsaved edits kept'); return; }
   const y = window.scrollY;
+  const updatingTab = activeTab;
   Object.assign(state, { text, savedText: text, eol, bom });
   if (activeTab) Object.assign(activeTab, { text, savedText: text, eol, bom });
   els.editor.value = text;
-  renderPreview().then(() => window.scrollTo({ top: y, left: 0, behavior: 'instant' }));
+  renderPreview().then(() => {
+    if (activeTab === updatingTab && !readerMoved) window.scrollTo({ top: y, left: 0, behavior: 'instant' });
+  });
 }
 
 /* ---------------- folder mode ---------------- */
@@ -959,7 +982,7 @@ contextMenu.bind(els.content, (target) => {
     const range = document.createRange(); range.selectNodeContents(els.content);
     const selected = getSelection(); selected.removeAllRanges(); selected.addRange(range);
   } }, null, { label: 'Find…', run: openFind },
-  { label: 'Edit here', run: () => setMode('edit') }, { label: 'Print…', run: () => window.print() });
+  { label: 'Edit here', run: () => setMode('edit') }, { label: 'Print…', run: printDocument });
   return items;
 });
 async function closeTabs(list) {
@@ -1064,7 +1087,7 @@ addEventListener('keydown', (e) => {
   else if (k === '=' || k === '+') { e.preventDefault(); setZoom(zoom + 0.1); }
   else if (k === '-' || k === '_') { e.preventDefault(); setZoom(zoom - 0.1); }
   else if (k === '0') { e.preventDefault(); setZoom(1); }
-  else if (k === 'p' && !els.workspace.hidden) { e.preventDefault(); window.print(); }
+  else if (k === 'p' && !els.workspace.hidden) { e.preventDefault(); printDocument(); }
   else if (k === 'tab' && tabs.length > 1) {
     e.preventDefault();
     const index = tabs.indexOf(activeTab);
