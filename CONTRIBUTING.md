@@ -42,7 +42,7 @@ The desktop window opens at 1000px wide, so check layout changes at that width.
    ```
 
 3. The `release` workflow builds Windows (`.exe`, `.msi`), macOS (`.dmg`) and Linux (`.deb`, `.rpm`, `.AppImage`) on native runners, plus a tarball of the web app, and attaches them to a **draft** release.
-4. Install the draft on a real machine, try it, then publish it.
+4. Install the draft on a real machine, try it, then publish it. On Windows, also open a new terminal and run `glance some.md` (with glance closed, then again with it open), check that `$env:Path` gained the install folder only once, and that uninstalling removes it.
 
 ## Testing
 

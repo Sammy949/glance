@@ -46,6 +46,16 @@ To remove it: Settings → Apps → glance → Uninstall.
 
 The same release has a `.dmg` for Apple silicon Macs and `.deb`, `.rpm` and `.AppImage` for Linux. They aren't signed either, so macOS will likely refuse to open the app the first time.
 
+### From a terminal
+
+The Windows installer puts glance on your PATH, so from a new terminal:
+
+```
+glance notes/plan.md
+```
+
+If glance is already open, the file opens in a new tab there. This is handy with coding agents: ask yours (in its instructions file, for example) to run `glance <file>` after it writes a plan. On macOS use `open -a glance plan.md`; on Linux, run the AppImage with the file.
+
 ### In a browser
 
 glance also runs as a web app in Chrome or Edge, works offline, and can be installed from the address bar. Each release includes `glance-web-<version>.tar.gz` for any static host. Opening folders and saving back to the same file need a Chromium browser. Elsewhere you can still read files and download an edited copy.
