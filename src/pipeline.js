@@ -45,6 +45,20 @@ function githubAlerts(md) {
   });
 }
 
+/* How many elements a piece of raw HTML leaves open (negative if it closes
+ * more than it opens). Comments, void and self-closing tags don't count. Large
+ * documents only split where this is back to zero, so a <details> opened in
+ * one block and closed much later is sanitized as one piece. */
+const VOID_TAGS = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
+export function htmlBalance(html) {
+  let open = 0;
+  for (const [, close, name, selfClose] of html.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<(\/?)([a-zA-Z][\w-]*)\b[^>]*?(\/?)>/g)) {
+    if (VOID_TAGS.has(name.toLowerCase()) || selfClose) continue;
+    open += close ? -1 : 1;
+  }
+  return open;
+}
+
 const esc = (s) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -135,17 +149,16 @@ export async function createRenderer() {
       largeDocument = true;
       const env = {};
       const tokens = md.parse(stripFrontmatter(text), env);
-      // Raw HTML can open a container in one token and close it much later.
-      // Sanitize it together so a chunk boundary cannot change its structure.
-      if (tokens.some((token) => token.type === 'html_block' && token.level === 0)) {
-        yield sanitize(md.renderer.render(tokens, md.options, env));
-        return;
-      }
       let start = 0;
       let depth = 0;
+      // Raw HTML can open a container in one block and close it much later.
+      // Never split while one is open, so a boundary can't change its structure.
+      let htmlOpen = 0;
       for (let end = 0; end < tokens.length; end++) {
         depth += tokens[end].nesting;
-        if (depth === 0 && (end - start >= (start === 0 ? 400 : 1600) || end === tokens.length - 1)) {
+        if (tokens[end].type === 'html_block') htmlOpen = Math.max(0, htmlOpen + htmlBalance(tokens[end].content));
+        const last = end === tokens.length - 1;
+        if (last || (depth === 0 && htmlOpen === 0 && end - start >= (start === 0 ? 400 : 1600))) {
           largeDocument = true;
           yield sanitize(md.renderer.render(tokens.slice(start, end + 1), md.options, env));
           start = end + 1;
