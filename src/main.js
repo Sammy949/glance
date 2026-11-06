@@ -211,7 +211,8 @@ darkQuery.addEventListener?.('change', () => {
 });
 
 state.readingWidth = store.get('glance.readingWidth', true);
-state.imagesAllowed = store.get('glance.remoteImages', false);
+let remoteImagesDefault = store.get('glance.remoteImages', false);
+state.imagesAllowed = remoteImagesDefault;
 
 /* ---------------- rendering ---------------- */
 
@@ -380,11 +381,18 @@ function updateImagesButton() {
   els.btnImages.setAttribute('aria-label', label);
 }
 
-function setImagesAllowed(allowed) {
+/* The toolbar button decides for the current document only. The Settings
+ * switch sets the default for documents opened later, and the current one. */
+function setTabImages(allowed) {
   state.imagesAllowed = !!allowed;
   if (activeTab) activeTab.imagesAllowed = state.imagesAllowed;
-  store.set('glance.remoteImages', state.imagesAllowed);
   updateImages();
+}
+
+function setImagesDefault(allowed) {
+  remoteImagesDefault = !!allowed;
+  store.set('glance.remoteImages', remoteImagesDefault);
+  setTabImages(remoteImagesDefault);
   syncSettings();
 }
 
@@ -412,7 +420,7 @@ async function loadDoc(doc, { preview = false } = {}) {
     key: doc.path || doc.key || doc.name || null,
     path: doc.path || null, text, savedText: text, eol, bom, handle: doc.handle || null,
     mode: doc.mode || 'read',
-    imagesAllowed: store.get('glance.remoteImages', false), dirty: false,
+    imagesAllowed: remoteImagesDefault, dirty: false,
     docRoot: doc.docRoot || null, relDir: doc.relDir ?? null,
     scrollY: doc.key ? scrollStore[doc.key] || 0 : 0, previewY: 0, editorY: 0,
     preview,
@@ -1084,7 +1092,7 @@ els.btnNew.onclick = newDoc;
 els.btnNew2.onclick = newDoc;
 els.btnSave.onclick = save;
 els.btnEdit.onclick = toggleMode;
-els.btnImages.onclick = () => setImagesAllowed(!state.imagesAllowed);
+els.btnImages.onclick = () => setTabImages(!state.imagesAllowed);
 els.btnWidth.onclick = toggleReadingWidth;
 els.btnOutline.onclick = toggleOutline;
 applyReadingWidth();
@@ -1096,7 +1104,7 @@ settings = createSettings({
     themeMode: state.themeMode,
     zoom,
     readingWidth: state.readingWidth,
-    imagesAllowed: state.imagesAllowed,
+    imagesAllowed: remoteImagesDefault,
     outlineOn: !els.outline.hidden,
     outlineAvailable: !els.btnOutline.hidden,
   }),
@@ -1104,7 +1112,7 @@ settings = createSettings({
     setThemeMode: (mode) => applyThemeMode(mode),
     setZoom: (value) => setZoom(value, { silent: true }),
     setReadingWidth,
-    setImagesAllowed,
+    setImagesAllowed: setImagesDefault,
     setOutline: setOutlinePreference,
     restoreDefaults: () => {
       applyThemeMode('system');
@@ -1112,7 +1120,7 @@ settings = createSettings({
       store.set('glance.zoom', 1);
       applyZoom();
       setReadingWidth(true);
-      setImagesAllowed(false);
+      setImagesDefault(false);
       setOutlinePreference(true);
     },
   },
