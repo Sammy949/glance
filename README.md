@@ -64,7 +64,7 @@ glance also runs as a web app in Chrome or Edge, works offline, and can be insta
 
 - No account, no telemetry, no analytics.
 - glance makes no network requests of its own. Remote images in a document stay blocked until you load them for that document.
-- Files are read and saved where they are. Settings like theme and text size stay on your machine.
+- Files are read and saved where they are. Settings like theme and text size stay on your machine, and so does the desktop app's list of recent files and last open tabs.
 
 ## Why it looks like Peek
 

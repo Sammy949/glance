@@ -63,11 +63,32 @@ fn get_launch_files(app: tauri::AppHandle) -> Vec<OpenedFile> {
     files
 }
 
+const OPENABLE: [&str; 5] = ["md", "markdown", "mdown", "mkd", "txt"];
+
+/// Reopen a document glance remembered (recent files, last session). Only
+/// existing markdown or text files, so this can't be used to read anything else.
+#[tauri::command]
+async fn open_path(app: tauri::AppHandle, path: String) -> Result<OpenedFile, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = std::fs::canonicalize(&path).map_err(|_| "File no longer exists".to_string())?;
+        let openable = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| OPENABLE.contains(&e.to_ascii_lowercase().as_str()));
+        if !openable || !path.is_file() {
+            return Err("Not a markdown file".to_string());
+        }
+        let file = read_opened(&path).ok_or("Could not read file")?;
+        allow_file(&app, &PathBuf::from(&file.path));
+        Ok(file)
+    }).await.map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 async fn open_native_file(app: tauri::AppHandle) -> Result<Option<OpenedFile>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let picked = app.dialog().file()
-            .add_filter("Markdown", &["md", "markdown", "mdown", "mkd", "txt"])
+            .add_filter("Markdown", &OPENABLE)
             .blocking_pick_file();
         let Some(picked) = picked else { return Ok(None) };
         let path = picked.into_path().map_err(|e| e.to_string())?;
@@ -93,7 +114,7 @@ async fn save_native_file(
             target
         } else {
             let picked = app.dialog().file()
-                .add_filter("Markdown", &["md", "markdown", "mdown", "mkd", "txt"])
+                .add_filter("Markdown", &OPENABLE)
                 .set_file_name(name.clone())
                 .blocking_save_file();
             let Some(picked) = picked else { return Ok(None) };
@@ -163,7 +184,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(WatchState(Mutex::new(None)))
         .manage(FileAccess(Mutex::new(HashSet::new())))
-        .invoke_handler(tauri::generate_handler![get_launch_files, open_native_file, save_native_file, watch_file])
+        .invoke_handler(tauri::generate_handler![get_launch_files, open_path, open_native_file, save_native_file, watch_file])
         .run(tauri::generate_context!())
         .expect("error while running glance");
 }

@@ -10,6 +10,13 @@ export async function pickNativeDocument() {
   return file ? { ...file, handle: null } : null;
 }
 
+/** Reopen a remembered path (recent files, last session). Rejects with a
+ * message if the file is gone or isn't markdown. */
+export async function openNativePath(path) {
+  const file = await window.__TAURI__.core.invoke('open_path', { path });
+  return { ...file, handle: null };
+}
+
 export async function saveNativeDocument({ path, name, text }) {
   return window.__TAURI__.core.invoke('save_native_file', { path, name, text });
 }
@@ -20,18 +27,24 @@ export async function saveNativeDocument({ path, name, text }) {
  *  - later: files from a second launch, forwarded by the single-instance plugin
  *  - live: `file-changed` when the watched file is modified on disk
  * `onFile` handles opens; `onChange` handles external edits. Both receive a
- * { name, text, path, handle:null } doc.
+ * { name, text, path, handle:null } doc. Resolves to the number of files
+ * glance was launched with (0 in a browser).
  */
 export async function initNativeLaunch(onFile, onChange) {
-  if (!isTauri()) return;
+  if (!isTauri()) return 0;
   const { invoke } = window.__TAURI__.core;
   const { listen } = window.__TAURI__.event;
 
   const toDoc = (f) => ({ name: f.name, text: f.text, path: f.path, handle: null });
 
+  let launched = 0;
   try {
     const files = await invoke('get_launch_files');
-    for (const file of files || []) if (typeof file.text === 'string') await onFile(toDoc(file));
+    for (const file of files || []) {
+      if (typeof file.text !== 'string') continue;
+      await onFile(toDoc(file));
+      launched++;
+    }
   } catch (e) {
     console.warn('[glance] get_launch_files failed:', e);
   }
@@ -49,6 +62,7 @@ export async function initNativeLaunch(onFile, onChange) {
   } catch (e) {
     console.warn('[glance] file-changed listener failed:', e);
   }
+  return launched;
 }
 
 /** Ask the native side to watch `path` and emit file-changed on modification. */

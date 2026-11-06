@@ -8,7 +8,7 @@ import { applyTheme } from './theme.js';
 import { createSettings } from './settings.js';
 import { pickFile, saveFile, fromDrop, fromHandle } from './files.js';
 import { ICONS } from './icons.js';
-import { isTauri, initNativeLaunch, watchFile, pickNativeDocument, saveNativeDocument } from './platform.js';
+import { isTauri, initNativeLaunch, watchFile, pickNativeDocument, saveNativeDocument, openNativePath } from './platform.js';
 import * as find from './find.js';
 import * as folder from './folder.js';
 import * as outline from './outline.js';
@@ -21,6 +21,7 @@ const els = {
   editor: document.getElementById('editor'),
   workspace: document.getElementById('workspace'),
   empty: document.getElementById('empty'),
+  recent: document.getElementById('recent'),
   toast: document.getElementById('toast'),
   btnOpen: document.getElementById('btn-open'),
   btnOpen2: document.getElementById('btn-open-2'),
@@ -105,6 +106,7 @@ async function matchingTab(doc) {
 }
 
 function renderTabs() {
+  saveSession();
   els.documentBar.hidden = tabs.length === 0;
   document.body.classList.toggle('has-tabs', tabs.length > 0);
   els.tabs.replaceChildren();
@@ -415,6 +417,7 @@ async function loadDoc(doc, { preview = false } = {}) {
   if (existing) {
     await activateTab(existing);
     if (!preview) keepTab(existing);
+    rememberRecent(existing);
     return;
   }
   const { text, eol, bom } = decodeText(doc.text || '');
@@ -434,6 +437,7 @@ async function loadDoc(doc, { preview = false } = {}) {
     tabs.splice(tabs.indexOf(replaced), 1, tab);
   }
   else tabs.push(tab);
+  rememberRecent(tab);
   await activateTab(tab);
 }
 
@@ -499,6 +503,7 @@ async function closeTab(tab) {
   } else {
     els.workspace.hidden = true;
     els.empty.hidden = false;
+    renderRecent();
     els.btnEdit.hidden = true;
     els.btnWidth.hidden = true;
     els.btnImages.hidden = true;
@@ -1304,11 +1309,91 @@ if (qFile) {
     .catch(() => {});
 }
 
-/* native (Tauri): load launched/associated files + apply live file changes */
+/* ---------------- recent files and the last session (desktop) ----------------
+ * Paths only, kept in this machine's localStorage. The web build can't reopen
+ * a file without a permission prompt, so both are desktop-only. */
+
+const RECENT_MAX = 10;
+
+function rememberRecent(tab) {
+  if (!isTauri() || !tab.path) return;
+  const recent = store.get('glance.recent', []).filter((item) => item.path !== tab.path);
+  recent.unshift({ path: tab.path, name: tab.name });
+  store.set('glance.recent', recent.slice(0, RECENT_MAX));
+}
+
+function forgetRecent(path) {
+  store.set('glance.recent', store.get('glance.recent', []).filter((item) => item.path !== path));
+}
+
+function parentFolder(path) {
+  const parts = path.split(/[\\/]/).filter(Boolean);
+  return parts.length > 1 ? parts[parts.length - 2] : '';
+}
+
+function renderRecent() {
+  const recent = isTauri() ? store.get('glance.recent', []) : [];
+  els.recent.hidden = recent.length === 0;
+  const list = els.recent.querySelector('ul');
+  list.replaceChildren();
+  for (const item of recent) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.title = item.path;
+    const name = document.createElement('span');
+    name.className = 'recent-name';
+    name.textContent = item.name;
+    const where = document.createElement('span');
+    where.className = 'recent-folder';
+    where.textContent = parentFolder(item.path);
+    button.append(name, where);
+    button.addEventListener('click', () => openRemembered(item.path, { announce: true }));
+    const li = document.createElement('li');
+    li.append(button);
+    list.append(li);
+  }
+}
+
+async function openRemembered(path, { announce = false } = {}) {
+  try {
+    await loadDoc(await openNativePath(path));
+    return true;
+  } catch (err) {
+    forgetRecent(path);
+    if (announce) flash(typeof err === 'string' ? err : 'File no longer exists');
+    renderRecent();
+    return false;
+  }
+}
+
+/* Saved whenever the tab bar changes, so a crash doesn't lose it. Preview
+ * tabs from flipping through a folder aren't part of the session. */
+let restoringSession = false;
+
+function saveSession() {
+  if (!isTauri() || restoringSession) return;
+  const paths = tabs.filter((tab) => tab.path && !tab.preview).map((tab) => tab.path);
+  store.set('glance.session', { paths, active: activeTab?.path || null });
+}
+
+async function restoreSession() {
+  const { paths = [], active = null } = store.get('glance.session', {});
+  if (!paths.length) return;
+  restoringSession = true;
+  for (const path of paths) await openRemembered(path);
+  restoringSession = false;
+  const tab = tabs.find((t) => t.path === active);
+  if (tab) await activateTab(tab);
+  saveSession();
+}
+
+/* native (Tauri): load launched/associated files + apply live file changes.
+ * With no files to open, bring back the last session. */
 initNativeLaunch(
   (doc) => loadDoc(doc),
   (doc) => { if (doc.path && doc.path === state.key) externalUpdate(doc.text); }
-);
+).then((launched) => { if (isTauri() && !launched) restoreSession(); });
+renderRecent();
 
 /* web live-reload: also check the file when the window regains focus */
 addEventListener('focus', () => { pollHandle(); });

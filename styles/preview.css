@@ -351,6 +351,42 @@ body.has-tabs #content :is(h1, h2, h3, h4, h5, h6) {
   color: var(--text-muted);
 }
 #empty .quiet:hover { background: var(--hover); color: var(--text); }
+
+/* Recent files (desktop): a quiet list under the actions. Rows hang 10px
+   into the margin so their text lines up with the heading above. */
+#recent { margin: 36px 0 0; }
+#recent h2 {
+  margin: 0 0 6px;
+  padding: 0;
+  border: 0;
+  color: var(--text-muted);
+  font: 600 12px/1.4 var(--font-ui);
+}
+#recent ul { margin: 0 -10px; padding: 0; list-style: none; }
+#empty #recent button {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+}
+#empty #recent button:hover { background: var(--hover); }
+#recent .recent-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#recent .recent-folder {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 #empty .shortcut {
   display: flex;
   align-items: center;
