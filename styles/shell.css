@@ -385,6 +385,8 @@ body.has-sidebar #sidebar { display: flex; }
 #sidebar-filter:hover { background: var(--hover); }
 #sidebar-filter > svg { flex: none; width: 17px; height: 17px; margin: 0 10px 0 2px; color: var(--icon); }
 #sidebar-filter:focus-within { background: var(--plane); outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* The row above already shows focus; app.css's ring on the input would double it. */
+#sidebar-filter #file-filter:focus-visible { outline: none; }
 #file-filter {
   all: unset;
   flex: 1;
