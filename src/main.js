@@ -15,6 +15,7 @@ import * as outline from './outline.js';
 import { renderDiagrams, hasDiagrams } from './diagrams.js';
 import { decodeText, encodeText, readFileText } from './text.js';
 import { diffBlocks } from './changes.js';
+import { searchText } from './search.js';
 
 const els = {
   content: document.getElementById('content'),
@@ -47,6 +48,7 @@ const els = {
   folderName: document.getElementById('folder-name'),
   fileTree: document.getElementById('file-tree'),
   fileFilter: document.getElementById('file-filter'),
+  contentResults: document.getElementById('content-results'),
   btnFolderClose: document.getElementById('btn-folder-close'),
   documentBar: document.getElementById('document-bar'),
   tabs: document.getElementById('tabs'),
@@ -639,6 +641,7 @@ async function useFolder(dir) {
 
 function renderTree(root) {
   els.fileFilter.value = '';
+  clearContentSearch();
   treeExpansion = null;
   els.fileTree.innerHTML = '';
   els.fileTree.appendChild(buildTreeDom(root));
@@ -722,22 +725,123 @@ function filterTree() {
     treeExpansion = null;
   }
 }
+/* ---- search inside the folder's files (same box as the name filter) ----
+ * Plain substring search over the markdown files already in the tree, read on
+ * demand and cached by modification time. No index, nothing in the background:
+ * each keystroke abandons the previous run, and a run stops at SEARCH_LIMIT. */
+
+const SEARCH_LIMIT = 200;
+const SEARCH_PER_FILE = 20;
+const searchCache = new WeakMap();
+let searchRun = 0;
+let searchTimer = null;
+
+function scheduleContentSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(searchContents, 120);
+}
+
+function clearContentSearch() {
+  searchRun++;
+  clearTimeout(searchTimer);
+  els.contentResults.hidden = true;
+  els.contentResults.querySelector('ul').replaceChildren();
+}
+
+async function fileText(node) {
+  const file = await node.handle.getFile();
+  const cached = searchCache.get(node);
+  if (cached?.modified === file.lastModified) return cached.text;
+  const text = await readFileText(file);
+  searchCache.set(node, { modified: file.lastModified, text });
+  return text;
+}
+
+function resultItem(node, result, query) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'content-result';
+  button.title = [...node.parentPath, node.name].join('/');
+  const where = document.createElement('span');
+  where.className = 'result-file';
+  if (node.parentPath.length) {
+    const dir = document.createElement('span');
+    dir.className = 'result-dir';
+    dir.textContent = `${node.parentPath.join('/')}/`;
+    where.append(dir);
+  }
+  where.append(node.name);
+  const line = document.createElement('span');
+  line.className = 'result-line';
+  line.textContent = `:${result.line}`;
+  where.append(line);
+  const text = document.createElement('span');
+  text.className = 'result-text';
+  const mark = document.createElement('mark');
+  mark.textContent = result.text.slice(result.start, result.end);
+  text.append(result.text.slice(0, result.start), mark, result.text.slice(result.end));
+  button.append(where, text);
+  button.addEventListener('click', () => openResult(node, result, query));
+  const li = document.createElement('li');
+  li.append(button);
+  return li;
+}
+
+async function searchContents() {
+  const run = ++searchRun;
+  const query = els.fileFilter.value.trim();
+  const list = els.contentResults.querySelector('ul');
+  const note = els.contentResults.querySelector('.results-note');
+  list.replaceChildren();
+  if (query.length < 2 || !state.root) { els.contentResults.hidden = true; return; }
+  els.contentResults.hidden = false;
+  note.textContent = 'Searching…';
+  const nodes = [...els.fileTree.querySelectorAll('.tree-file')].map((button) => button._node);
+  let total = 0;
+  let lastYield = performance.now();
+  for (const node of nodes) {
+    let text;
+    try { text = await fileText(node); } catch { continue; }
+    if (run !== searchRun) return;
+    const results = searchText(text, query, Math.min(SEARCH_PER_FILE, SEARCH_LIMIT - total));
+    for (const result of results) list.append(resultItem(node, result, query));
+    total += results.length;
+    if (total >= SEARCH_LIMIT) break;
+    if (performance.now() - lastYield > 24) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (run !== searchRun) return;
+      lastYield = performance.now();
+    }
+  }
+  note.textContent = total >= SEARCH_LIMIT ? `Showing the first ${SEARCH_LIMIT} matches. Type more to narrow it.`
+    : total ? '' : 'No matches inside files.';
+}
+
+async function openResult(node, result, query) {
+  await selectTreeFile(node);
+  await renderTask;
+  els.findInput.value = query;
+  openFind();
+  const { count, index } = find.goTo(result.occurrence);
+  if (count) els.findCount.textContent = `${index}/${count}`;
+}
+
 function firstFilteredFile() {
   return [...els.fileTree.querySelectorAll('.tree-file')].find((button) => button.offsetParent !== null);
 }
-els.fileFilter.addEventListener('input', filterTree);
+els.fileFilter.addEventListener('input', () => { filterTree(); scheduleContentSearch(); });
 els.fileFilter.addEventListener('keydown', (event) => {
   if (event.key === 'ArrowDown') { event.preventDefault(); firstFilteredFile()?.focus(); }
   else if (event.key === 'Enter') { event.preventDefault(); firstFilteredFile()?.click(); }
   else if (event.key === 'Escape') {
-    event.preventDefault(); els.fileFilter.value = ''; filterTree();
+    event.preventDefault(); els.fileFilter.value = ''; filterTree(); clearContentSearch();
     const active = els.fileTree.querySelector('.tree-file.active');
     (active?.offsetParent !== null && active ? active : firstFilteredFile())?.focus();
   }
 });
 els.fileTree.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && els.fileFilter.value) {
-    event.preventDefault(); els.fileFilter.value = ''; filterTree(); els.fileFilter.focus();
+    event.preventDefault(); els.fileFilter.value = ''; filterTree(); clearContentSearch(); els.fileFilter.focus();
   }
 });
 
@@ -804,6 +908,8 @@ function closeFolder() {
   els.sidebar.hidden = true;
   els.btnSidebar.hidden = true;
   state.root = null;
+  els.fileFilter.value = '';
+  clearContentSearch();
   folder.saveHandle('lastDir', null);
   dispatchEvent(new CustomEvent('glance:folder', { detail: { name: null } }));
   updateOutline();

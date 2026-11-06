@@ -16,6 +16,7 @@ const SHELL = [
   './src/settings.js',
   './src/preview.js',
   './src/changes.js',
+  './src/search.js',
   './src/main.js',
   './src/menu.js',
   './src/panels.js',

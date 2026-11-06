@@ -408,6 +408,40 @@ body.has-sidebar #sidebar { display: flex; }
 #file-tree strong { font-weight: 600; color: var(--text); }
 #file-tree button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 
+/* Matches inside files, under the tree while the filter has text. Two lines a
+   result: the file and line, then the matching text. */
+#content-results { margin: 14px 0 0; }
+#content-results h2 {
+  margin: 0 0 4px;
+  padding: 0 4px;
+  border: 0;
+  color: var(--sb-section);
+  font: 600 13px/22px var(--font-ui);
+}
+#content-results ul { margin: 0; padding: 0; list-style: none; }
+#content-results li + li { margin-top: 1px; }
+.content-result {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 5px 6px;
+  border-radius: 9px;
+  color: var(--sb-text);
+  font: 13px/18px var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.content-result:hover { background: var(--hover); }
+.content-result:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.content-result :is(.result-file, .result-text) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.content-result :is(.result-dir, .result-line) { color: var(--text-muted); }
+.content-result .result-text { color: var(--text-muted); font-size: 12.5px; }
+.content-result mark { background: var(--selected); color: var(--text); border-radius: 2px; }
+#content-results .results-note { margin: 6px 6px 0; color: var(--text-muted); font: 12.5px/18px var(--font-ui); }
+#content-results .results-note:empty { display: none; }
+
 /* Footer: one row under a short line, mirroring the toggle at the top. */
 #sidebar-foot { position: relative; flex: none; padding: 6px 14px 10px; }
 #sidebar-foot::before {

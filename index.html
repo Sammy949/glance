@@ -53,8 +53,13 @@
           <button id="btn-folder-close" class="sb-act" type="button" title="Close folder" aria-label="Close folder"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </div>
         <div id="sb-folder-body">
-          <label id="sidebar-filter"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input id="file-filter" type="text" placeholder="Filter files" aria-label="Filter files (Ctrl+Shift+F)" autocomplete="off" spellcheck="false"></label>
+          <label id="sidebar-filter"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input id="file-filter" type="text" placeholder="Filter or search files" aria-label="Filter file names and search inside files (Ctrl+Shift+F)" autocomplete="off" spellcheck="false"></label>
           <nav id="file-tree" aria-label="Files"></nav>
+          <section id="content-results" aria-labelledby="content-results-title" hidden>
+            <h2 id="content-results-title">In files</h2>
+            <ul></ul>
+            <p class="results-note" aria-live="polite"></p>
+          </section>
         </div>
       </section>
     </div>

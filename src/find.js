@@ -95,6 +95,15 @@ export function step(dir = 1) {
   return { count: ranges.length, index: current + 1 };
 }
 
+/** Jump straight to match `index` (0-based, clamped to the last match). */
+export function goTo(index) {
+  if (!ranges.length) return { count: 0, index: 0 };
+  current = Math.max(0, Math.min(index, ranges.length - 1));
+  markCurrent();
+  scrollToCurrent();
+  return { count: ranges.length, index: current + 1 };
+}
+
 export function close() {
   clearHighlights();
   ranges = [];
