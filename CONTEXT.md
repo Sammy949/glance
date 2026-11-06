@@ -209,9 +209,13 @@ Release for manual review and publish.
   print, arrow-key file flipping, and the line-ending/BOM save fix.
 - Feature work is checked headlessly with Playwright against the served web
   app (no repo test suite). There is no Rust toolchain in this WSL environment.
-- Known: a ~5MB document takes tens of seconds to lay out (pre-existing; full
-  layout of the DOM dominates). `content-visibility` is the likely fix but
-  risks scroll-position jumps; not done yet.
+- Large documents (>256 KB) parse once, then render in chunks of top-level
+  blocks with `content-visibility: auto`; chunks never split while raw HTML
+  has an element open (`htmlBalance` in pipeline.js). Measured in headless
+  Chromium: 1 MB first screen ~0.5 s, longest block ~0.45 s. Known: a 5 MB
+  document still blocks ~4 s on the single `md.parse` before the first
+  screen; moving the parse to a worker and painting a prefix first is the
+  likely fix.
 - **Later:** native folder browsing under Tauri (FS Access API may be limited
   in WebView2); folder-wide native watch; session restoration; Mermaid (lazy).
 

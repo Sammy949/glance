@@ -64,7 +64,7 @@ The renderer is a port of PowerToys Peek's markdown preview. Peek runs Markdig w
 
 I went through what people ask for and complain about in markdown viewers: GitHub issues for PowerToys, Typora, MarkText, glow, Zed and VS Code, and recent Show HN threads. Mermaid was the top request almost everywhere, followed by an outline for long documents. The complaints were mostly about apps changing files they'd only opened, freezing on big files, and bloat.
 
-So v0.4 added Mermaid, the outline, GitHub alerts, text size and printing, and fixed a bug where saving turned Windows line endings into Unix ones. Big files are still slow (a 5 MB document takes about 20 seconds), so that's next. The details are in [docs/research.md](docs/research.md).
+So v0.4 added Mermaid, the outline, GitHub alerts, text size and printing, and fixed a bug where saving turned Windows line endings into Unix ones. Big files now render in pieces: a 1 MB document shows its first screen in about half a second and stays responsive while the rest fills in. A 5 MB document still pauses for a few seconds before the first screen. The details are in [docs/research.md](docs/research.md).
 
 ## Docs
 
