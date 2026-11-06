@@ -197,6 +197,8 @@ function readingPanel(actions, getState) {
     group('Content', [
       row('Remote images', 'Load images from the web. Off keeps the app offline.',
         toggleSwitch('Remote images', getState().imagesAllowed, (value) => actions.setImagesAllowed(value), { key: 'images' })),
+      row('Frontmatter', 'Show the YAML header at the top of a document as a small table.',
+        toggleSwitch('Frontmatter', getState().frontmatter, (value) => actions.setFrontmatter(value), { key: 'frontmatter' })),
       row('Outline', outlineOn
         ? 'Show headings beside the document.'
         : 'Open a document with headings to use the outline.',
@@ -256,7 +258,7 @@ function aboutPanel(actions) {
         }, 'View')),
     ]),
     group('Reset', [
-      row('Restore defaults', 'Theme, text size, reading width, remote images, and outline.',
+      row('Restore defaults', 'Theme, text size, reading width, remote images, frontmatter, and outline.',
         h('button', {
           type: 'button',
           class: 'settings-textbtn',
@@ -391,6 +393,7 @@ export function createSettings({ getState, actions, onOpen, onClose } = {}) {
     setZoom: actions.setZoom,
     setReadingWidth: actions.setReadingWidth,
     setImagesAllowed: actions.setImagesAllowed,
+    setFrontmatter: actions.setFrontmatter,
     setOutline: actions.setOutline,
     restoreDefaults: actions.restoreDefaults,
     showPage: (pageId) => show(pageId),
@@ -556,6 +559,7 @@ export function createSettings({ getState, actions, onOpen, onClose } = {}) {
       const values = {
         readingWidth: st.readingWidth,
         images: st.imagesAllowed,
+        frontmatter: st.frontmatter,
         outline: st.outlineOn,
       };
       for (const [key, value] of Object.entries(values)) {

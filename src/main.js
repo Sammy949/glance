@@ -213,6 +213,7 @@ darkQuery.addEventListener?.('change', () => {
 
 state.readingWidth = store.get('glance.readingWidth', true);
 let remoteImagesDefault = store.get('glance.remoteImages', false);
+state.showFrontmatter = store.get('glance.frontmatter', false);
 state.imagesAllowed = remoteImagesDefault;
 
 /* ---------------- rendering ---------------- */
@@ -250,7 +251,8 @@ async function renderDocument() {
   els.content.replaceChildren();
   find.setContainer(els.content);
   let foundRemote = false;
-  const chunks = large ? renderer.chunks(state.text) : [renderer.render(state.text)];
+  const options = { frontmatter: state.showFrontmatter };
+  const chunks = large ? renderer.chunks(state.text, options) : [renderer.render(state.text, options)];
   els.content.setAttribute('aria-busy', 'true');
   let first = true;
   for (const html of chunks) {
@@ -850,6 +852,15 @@ function applyReadingWidth() {
   syncSettings();
 }
 
+function setFrontmatter(on) {
+  state.showFrontmatter = !!on;
+  store.set('glance.frontmatter', state.showFrontmatter);
+  syncSettings();
+  if (els.workspace.hidden) return;
+  const y = window.scrollY;
+  renderPreview().then(() => window.scrollTo({ top: y, left: 0, behavior: 'instant' }));
+}
+
 function setReadingWidth(on) {
   state.readingWidth = !!on;
   store.set('glance.readingWidth', state.readingWidth);
@@ -1147,6 +1158,7 @@ settings = createSettings({
     zoom,
     readingWidth: state.readingWidth,
     imagesAllowed: remoteImagesDefault,
+    frontmatter: state.showFrontmatter,
     outlineOn: !els.outline.hidden,
     outlineAvailable: !els.btnOutline.hidden,
   }),
@@ -1155,6 +1167,7 @@ settings = createSettings({
     setZoom: (value) => setZoom(value, { silent: true }),
     setReadingWidth,
     setImagesAllowed: setImagesDefault,
+    setFrontmatter,
     setOutline: setOutlinePreference,
     restoreDefaults: () => {
       applyThemeMode('system');
@@ -1163,6 +1176,7 @@ settings = createSettings({
       applyZoom();
       setReadingWidth(true);
       setImagesDefault(false);
+      setFrontmatter(false);
       setOutlinePreference(true);
     },
   },

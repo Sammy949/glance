@@ -330,6 +330,19 @@ body.theme-dark {
 #content .markdown-alert > :last-child { margin-bottom: 0; }
 
 /* ---------------- mermaid diagrams ---------------- */
+/* Frontmatter, when shown (Settings > Reading): a quiet key/value header, not
+ * a data table, so the document theme's table borders and stripes are reset. */
+#content table.frontmatter {
+  display: table; width: auto; margin: 0 0 24px; border: 0; border-collapse: collapse;
+  font-size: .875em; line-height: 1.5;
+}
+#content table.frontmatter tr { background: none; border: 0; }
+#content table.frontmatter :is(th, td) {
+  padding: 2px 16px 2px 0; border: 0; background: none; text-align: left; vertical-align: top;
+}
+#content table.frontmatter th { color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+#content pre.frontmatter-raw { margin: 0 0 24px; font-size: .8125em; color: var(--text-muted); }
+
 /* What an outside change touched (main.js markChanges): a bar in the left
  * gutter beside changed blocks, and a short notch where blocks were removed. */
 #content :is(.block-changed, .block-removed-before, .block-removed-after) { position: relative; }

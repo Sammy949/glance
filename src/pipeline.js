@@ -7,10 +7,49 @@
  * All deps are vendored (vendor/, pinned by scripts/vendor.mjs) — nothing is
  * fetched from a CDN at runtime, so startup is instant and fully offline. */
 
-/* Markdig's UseYamlFrontMatter hides frontmatter from output; we do the same. */
+/* Markdig's UseYamlFrontMatter hides frontmatter from output; we do the same,
+ * unless the reader asks to see it (Settings > Reading > Frontmatter). */
+const FRONTMATTER = /^﻿?---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 function stripFrontmatter(text) {
-  const m = text.match(/^﻿?---\r?\n[\s\S]*?\r?\n---\r?\n?/);
+  const m = text.match(FRONTMATTER);
   return m ? text.slice(m[0].length) : text;
+}
+
+const unquote = (value) => value.replace(/^(["'])(.*)\1$/, '$2');
+
+/* Flat YAML only: `key: value` lines, and `- item` lists under a key. Returns
+ * [key, value | items[]] pairs, or null for anything else (nested maps, block
+ * scalars) so the caller can show the raw text instead. No YAML library. */
+export function parseFrontmatter(yaml) {
+  const entries = [];
+  for (const line of yaml.split(/\r?\n/)) {
+    if (!line.trim() || /^\s*#/.test(line)) continue;
+    const item = line.match(/^\s*-\s+(.*)$/);
+    if (item) {
+      const last = entries[entries.length - 1];
+      if (!last || !Array.isArray(last[1])) return null;
+      last[1].push(unquote(item[1].trim()));
+      continue;
+    }
+    const pair = line.match(/^([A-Za-z0-9_][\w .-]*?)\s*:(?:\s+(.*))?$/);
+    if (!pair) return null;
+    const value = (pair[2] ?? '').trim();
+    if (/^[|>]/.test(value)) return null;
+    entries.push([pair[1], value === '' ? [] : unquote(value)]);
+  }
+  return entries;
+}
+
+/* The frontmatter as a small key/value table, or raw text when it isn't flat.
+ * Everything is escaped: nothing in frontmatter is HTML. */
+export function frontmatterHtml(text) {
+  const m = text.match(FRONTMATTER);
+  if (!m || !m[1].trim()) return '';
+  const entries = parseFrontmatter(m[1]);
+  if (!entries || !entries.length) return `<pre class="frontmatter frontmatter-raw">${esc(m[1])}</pre>\n`;
+  const rows = entries.map(([key, value]) =>
+    `<tr><th scope="row">${esc(key)}</th><td>${esc(Array.isArray(value) ? value.join(', ') : value)}</td></tr>`).join('');
+  return `<table class="frontmatter"><tbody>${rows}</tbody></table>\n`;
 }
 
 /* GitHub alerts: a blockquote whose first line is exactly [!NOTE], [!TIP],
@@ -172,13 +211,13 @@ export async function createRenderer() {
     /** Block sources from the most recent parse, in data-block order. */
     get lastBlocks() { return (lastBlocks ??= blockSources()); },
     /** Normal documents keep the immediate render path. */
-    render(text) {
+    render(text, { frontmatter = false } = {}) {
       largeDocument = text.length > 256 * 1024;
-      return sanitize(md.render(stripFrontmatter(text)));
+      return sanitize((frontmatter ? frontmatterHtml(text) : '') + md.render(stripFrontmatter(text)));
     },
     /** Parse once so references, footnotes and duplicate heading IDs stay global.
      * Yield only at balanced block boundaries, never through a list or table. */
-    *chunks(text) {
+    *chunks(text, { frontmatter = false } = {}) {
       largeDocument = true;
       const env = {};
       const tokens = md.parse(stripFrontmatter(text), env);
@@ -193,7 +232,8 @@ export async function createRenderer() {
         const last = end === tokens.length - 1;
         if (last || (depth === 0 && htmlOpen === 0 && end - start >= (start === 0 ? 400 : 1600))) {
           largeDocument = true;
-          yield sanitize(md.renderer.render(tokens.slice(start, end + 1), md.options, env));
+          const card = start === 0 && frontmatter ? frontmatterHtml(text) : '';
+          yield sanitize(card + md.renderer.render(tokens.slice(start, end + 1), md.options, env));
           start = end + 1;
         }
       }
