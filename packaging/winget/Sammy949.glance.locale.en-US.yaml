@@ -1,13 +1,15 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.12.0.schema.json
 PackageIdentifier: Sammy949.glance
-PackageVersion: 0.4.2
+PackageVersion: 0.5.0
 PackageLocale: en-US
-Publisher: Sammy949
+Publisher: Samuel Urah Yahaya
 PublisherUrl: https://github.com/Sammy949
 PublisherSupportUrl: https://github.com/Sammy949/glance/issues
 PackageName: glance
+Author: Samuel Urah Yahaya
 PackageUrl: https://github.com/Sammy949/glance
 License: MIT
+Copyright: Copyright (c) 2026 Samuel Urah Yahaya
 LicenseUrl: https://github.com/Sammy949/glance/blob/main/LICENSE
 ShortDescription: A fast markdown viewer with a quick editor. Double-click a .md file and it opens rendered.
 Description: |-
@@ -22,6 +24,6 @@ Tags:
 - reader
 - preview
 - mermaid
-ReleaseNotesUrl: https://github.com/Sammy949/glance/releases/tag/v0.4.2
+ReleaseNotesUrl: https://github.com/Sammy949/glance/releases/tag/v0.5.0
 ManifestType: defaultLocale
 ManifestVersion: 1.12.0

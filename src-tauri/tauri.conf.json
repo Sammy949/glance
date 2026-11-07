@@ -27,6 +27,8 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Samuel Urah Yahaya",
+    "copyright": "Copyright (c) 2026 Samuel Urah Yahaya",
     "category": "Productivity",
     "windows": {
       "nsis": {
