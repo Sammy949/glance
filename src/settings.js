@@ -13,7 +13,7 @@ const MAC = /mac/i.test(navigator.platform) ||
 const MOD = MAC ? '⌘' : 'Ctrl';
 const SHIFT = MAC ? '⇧' : 'Shift';
 
-const VERSION = '0.4.2';
+const VERSION = '0.5.0';
 const SOURCE = 'https://github.com/Sammy949/glance';
 
 const PAGES = [
