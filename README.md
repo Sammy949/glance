@@ -54,7 +54,7 @@ The Windows installer puts glance on your PATH, so from a new terminal:
 glance notes/plan.md
 ```
 
-If glance is already open, the file opens in a new tab there. This is handy with coding agents: ask yours (in its instructions file, for example) to run `glance <file>` after it writes a plan. On macOS use `open -a glance plan.md`; on Linux, run the AppImage with the file.
+If glance is already open, the file opens in a new tab there. That works in PowerShell and Command Prompt; from WSL, type `glance.exe` instead. This is handy with coding agents: ask yours (in its instructions file, for example) to run `glance <file>` after it writes a plan. On macOS use `open -a glance plan.md`; on Linux, run the AppImage with the file.
 
 ### In a browser
 
