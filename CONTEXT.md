@@ -170,8 +170,10 @@ Forwarded relative paths resolve against the second launch's cwd. `open_path`
 reopens remembered paths (markdown/text extensions only) for recent files
 (`glance.recent`, 10) and the last session (`glance.session`, saved on every
 tab-bar render, restored only when launched without files). The Windows NSIS
-installer adds the install dir to the user PATH (`src-tauri/windows/hooks.nsh`,
-guarded against PATH values too long for NSIS strings).
+installer adds the install dir to the user PATH (`src-tauri/windows/hooks.nsh`).
+The edit runs in Windows PowerShell against the raw registry value, because
+NSIS strings (often 1024 chars) can't hold many real PATHs; it adds/removes only
+the exact entry, keeps `%VARS%` unexpanded and REG_EXPAND_SZ.
 
 **Settings (`Ctrl+,`):** full-page view (`settings.js`) with Appearance,
 Reading, Shortcuts, About. Theme mode System/Light/Dark (`glance.themeMode`).
