@@ -232,13 +232,16 @@ Release for manual review and publish.
   print, arrow-key file flipping, and the line-ending/BOM save fix.
 - Feature work is checked headlessly with Playwright against the served web
   app (no repo test suite). There is no Rust toolchain in this WSL environment.
-- Large documents (>256 KB) parse once, then render in chunks of top-level
-  blocks with `content-visibility: auto`; chunks never split while raw HTML
-  has an element open (`htmlBalance` in pipeline.js). Measured in headless
-  Chromium: 1 MB first screen ~0.5 s, longest block ~0.45 s. Known: a 5 MB
-  document still blocks ~4 s on the single `md.parse` before the first
-  screen; moving the parse to a worker and painting a prefix first is the
-  likely fix.
+- Large documents (>256 KB) parse in a module Web Worker (`render-worker.js`,
+  sharing `createMarkdown`/`chunkHtml` from pipeline.js) and stream unsanitized
+  chunks back; the page sanitizes each with DOMPurify (it needs a DOM). The
+  first screen comes from a quick main-thread render of a ~32 KB prefix cut
+  outside fences (`documentPrefix`), replaced by the first real chunk. Chunks
+  split only at balanced top-level boundaries and never while raw HTML has an
+  element open (`htmlBalance`); `content-visibility: auto` keeps layout cheap.
+  A superseded render terminates its worker. Falls back to main-thread chunks
+  if a worker can't start. Measured in headless Chromium: 5 MB first screen
+  ~0.4 s, longest main-thread block ~0.4 s (was ~4 s for both).
 - **Later:** native folder browsing under Tauri (FS Access API may be limited
   in WebView2); folder-wide native watch; session restoration; Mermaid (lazy).
 

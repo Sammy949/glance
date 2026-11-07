@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { htmlBalance, parseFrontmatter, frontmatterHtml } from '../src/pipeline.js';
+import { htmlBalance, parseFrontmatter, frontmatterHtml, documentPrefix } from '../src/pipeline.js';
 
 test('balanced and self-contained HTML leaves nothing open', () => {
   assert.equal(htmlBalance('<p class="markdown-alert-title"><svg viewBox="0 0 24 24"><path d="M1 1"/></svg>Note</p>\n'), 0);
@@ -32,4 +32,18 @@ test('frontmatter renders escaped, falls back to raw, and needs a closing fence'
   assert.equal(frontmatterHtml('---\nmeta:\n  a: <i>\n---\nbody'), '<pre class="frontmatter frontmatter-raw">meta:\n  a: &lt;i&gt;</pre>\n');
   assert.equal(frontmatterHtml('---\ntitle: x\nno closing fence'), '');
   assert.equal(frontmatterHtml('# No frontmatter'), '');
+});
+
+test('the first-screen prefix cuts at a blank line, never inside a fence', () => {
+  assert.equal(documentPrefix('# short\n\ntext'), '# short\n\ntext');
+  const para = 'word '.repeat(20) + '\n\n';
+  const long = para.repeat(400);
+  const cut = documentPrefix(long);
+  assert.ok(cut.length >= 32 * 1024 && cut.length < 32 * 1024 + para.length + 2);
+  assert.ok(long.startsWith(cut) && cut.endsWith('\n') && long[cut.length] === '\n');
+  // A fence spanning the 32 KB mark: the cut lands after it closes.
+  const fenced = 'a\n\n'.repeat(8000) + '```\n' + 'code\n\n'.repeat(2000) + '```\n\nafter\n';
+  const fcut = documentPrefix(fenced);
+  assert.equal((fcut.match(/```/g) || []).length % 2, 0);
+  assert.ok(fcut.length > fenced.indexOf('```\n\nafter'));
 });

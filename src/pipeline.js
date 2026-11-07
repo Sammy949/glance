@@ -101,19 +101,16 @@ export function htmlBalance(html) {
 const esc = (s) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-export async function createRenderer() {
-  let MarkdownIt, DOMPurify;
-  try {
-    MarkdownIt = (await import('../vendor/markdown-it.js')).default;
-    DOMPurify = (await import('../vendor/dompurify.js')).default;
-  } catch (e) {
-    // Core failed to load (corrupt/missing vendor file). Degrade to a plain-text
-    // renderer instead of a dead app.
+/** The configured markdown-it, shared by the page and the render worker (no
+ * DOM needed). `setLarge(true)` turns off syntax highlighting, which large
+ * documents skip. `blocks` holds the last parse's source and the line ranges
+ * of its top-level blocks (see changes.js). Resolves to null if the core
+ * library can't load. */
+export async function createMarkdown() {
+  let MarkdownIt;
+  try { MarkdownIt = (await import('../vendor/markdown-it.js')).default; } catch (e) {
     console.error('[glance] core renderer failed to load:', e);
-    return {
-      render: (text) =>
-        `<blockquote><strong>glance:</strong> renderer failed to load — showing raw text.</blockquote><pre>${esc(text)}</pre>`,
-    };
+    return null;
   }
 
   // highlight.js (common build). Optional: without it code blocks are plain.
@@ -175,15 +172,11 @@ export async function createRenderer() {
     console.warn('[glance] anchor plugin failed to load:', e);
   }
 
-  // Number the top-level blocks (data-block) and keep each one's source, so a
+  // Number the top-level blocks (data-block) and record their line ranges, so a
   // reload can tell which blocks changed (changes.js). Registered last so it
   // sees the final order, after plugins have moved or added tokens. Tokens
   // with no source position (alert titles, the footnote list) are skipped.
-  // Rendering only records line ranges; the strings are built when a reload
-  // asks for them, so ordinary renders don't pay for it.
-  let lastSrc = '';
-  let lastMaps = [];
-  let lastBlocks = null;
+  const blocks = { src: '', maps: [] };
   md.core.ruler.push('glance_blocks', (state) => {
     const maps = [];
     for (const token of state.tokens) {
@@ -191,52 +184,180 @@ export async function createRenderer() {
       token.attrSet('data-block', String(maps.length / 2));
       maps.push(token.map[0], token.map[1]);
     }
-    lastSrc = state.src;
-    lastMaps = maps;
-    lastBlocks = null;
+    blocks.src = state.src;
+    blocks.maps = maps;
   });
+
+  return { md, blocks, setLarge(on) { largeDocument = on; } };
+}
+
+/** Parse once so references, footnotes and duplicate heading IDs stay global,
+ * then yield unsanitized HTML in chunks, splitting only at balanced top-level
+ * block boundaries: never inside a list or table, or while raw HTML has an
+ * element open. The first chunk is small so the first screen comes quickly. */
+export function* chunkHtml(markdown, text, { frontmatter = false } = {}) {
+  const { md } = markdown;
+  markdown.setLarge(true);
+  const env = {};
+  const tokens = md.parse(stripFrontmatter(text), env);
+  let start = 0;
+  let depth = 0;
+  let htmlOpen = 0;
+  for (let end = 0; end < tokens.length; end++) {
+    depth += tokens[end].nesting;
+    if (tokens[end].type === 'html_block') htmlOpen = Math.max(0, htmlOpen + htmlBalance(tokens[end].content));
+    const last = end === tokens.length - 1;
+    if (last || (depth === 0 && htmlOpen === 0 && end - start >= (start === 0 ? 400 : 1600))) {
+      const card = start === 0 && frontmatter ? frontmatterHtml(text) : '';
+      yield card + md.renderer.render(tokens.slice(start, end + 1), md.options, env);
+      start = end + 1;
+    }
+  }
+}
+
+/* The first ~32 KB of a document, cut at a blank line outside fenced code, so
+ * a large file can show its first screen before the full parse finishes. */
+const PREFIX_BYTES = 32 * 1024;
+export function documentPrefix(text) {
+  if (text.length <= PREFIX_BYTES) return text;
+  let fence = null;
+  let at = 0;
+  while (at < text.length) {
+    const next = text.indexOf('\n', at);
+    const end = next === -1 ? text.length : next + 1;
+    const line = text.slice(at, end);
+    const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+    if (marker) {
+      if (!fence) fence = marker[1];
+      else if (marker[1][0] === fence[0] && marker[1].length >= fence.length) fence = null;
+    }
+    if (!fence && at >= PREFIX_BYTES && !line.trim()) return text.slice(0, at);
+    at = end;
+  }
+  return text;
+}
+
+export async function createRenderer() {
+  let DOMPurify;
+  const markdown = await createMarkdown();
+  try {
+    if (!markdown) throw new Error('markdown-it did not load');
+    DOMPurify = (await import('../vendor/dompurify.js')).default;
+  } catch (e) {
+    // Core failed to load (corrupt/missing vendor file). Degrade to a plain-text
+    // renderer instead of a dead app.
+    console.error('[glance] core renderer failed to load:', e);
+    return {
+      render: (text) =>
+        `<blockquote><strong>glance:</strong> renderer failed to load — showing raw text.</blockquote><pre>${esc(text)}</pre>`,
+    };
+  }
+  const { md, blocks } = markdown;
+
+  // Block sources are built only when a reload asks for them, so ordinary
+  // renders don't pay for it. A worker render reports its ranges back here.
+  let lastSrc = '';
+  let lastMaps = [];
+  let lastBlocks = null;
+  const recordBlocks = (src, maps) => { lastSrc = src; lastMaps = maps; lastBlocks = null; };
   const blockSources = () => {
     const starts = [0];
     for (let i = lastSrc.indexOf('\n'); i !== -1; i = lastSrc.indexOf('\n', i + 1)) starts.push(i + 1);
     starts.push(lastSrc.length + 1);
-    const blocks = [];
+    const out = [];
     for (let i = 0; i < lastMaps.length; i += 2) {
-      blocks.push(lastSrc.slice(starts[lastMaps[i]], starts[lastMaps[i + 1]] - 1));
+      out.push(lastSrc.slice(starts[lastMaps[i]], starts[lastMaps[i + 1]] - 1));
     }
-    return blocks;
+    return out;
   };
 
   const sanitize = (html) => DOMPurify.sanitize(html, { ADD_ATTR: ['target', 'rel', 'class', 'id'] });
+
+  // Large documents parse in a worker so the window stays responsive. One
+  // render at a time: a parse can't be interrupted, so a newer request
+  // replaces the worker instead of queueing behind it.
+  let worker = null;
+  let workerBusy = false;
+  let nextJob = 0;
+  const startWorker = () => {
+    try { return new Worker(new URL('./render-worker.js', import.meta.url), { type: 'module' }); }
+    catch (e) { console.warn('[glance] render worker unavailable:', e); return null; }
+  };
+
+  async function* mainThreadChunks(text, options) {
+    for (const html of chunkHtml(markdown, text, options)) yield sanitize(html);
+    recordBlocks(blocks.src, blocks.maps);
+  }
+
+  async function* workerChunks(text, options) {
+    if (workerBusy) { worker?.terminate(); worker = null; }
+    worker ??= startWorker();
+    if (!worker) { yield* mainThreadChunks(text, options); return; }
+    const id = ++nextJob;
+    const queue = [];
+    let wake = null;
+    const onMessage = ({ data }) => {
+      if (data.id !== id) return;
+      queue.push(data);
+      wake?.();
+    };
+    const onError = (event) => { queue.push({ id, error: event.message || 'worker error' }); wake?.(); };
+    const own = worker;
+    own.addEventListener('message', onMessage);
+    own.addEventListener('error', onError);
+    workerBusy = true;
+    own.postMessage({ id, text, frontmatter: !!options.frontmatter });
+    let sent = 0;
+    let finished = false;
+    try {
+      while (true) {
+        if (!queue.length) await new Promise((resolve) => { wake = resolve; });
+        wake = null;
+        const message = queue.shift();
+        if (message.error) {
+          // Fall back to the main thread, unless chunks already went out.
+          console.warn('[glance] render worker failed:', message.error);
+          finished = true;
+          own.terminate();
+          if (worker === own) worker = null;
+          if (!sent) yield* mainThreadChunks(text, options);
+          return;
+        }
+        if (message.done) { finished = true; recordBlocks(stripFrontmatter(text), message.maps); return; }
+        sent++;
+        yield sanitize(message.html);
+      }
+    } finally {
+      own.removeEventListener('message', onMessage);
+      own.removeEventListener('error', onError);
+      // Abandoned mid-parse (a newer render took over): the worker is still busy
+      // with this document, so drop it rather than queue the next one behind it.
+      if (!finished) { own.terminate(); if (worker === own) worker = null; }
+      if (worker === own || !worker) workerBusy = false;
+    }
+  }
+
   return {
-    /** Block sources from the most recent parse, in data-block order. */
+    /** Block sources from the most recent render, in data-block order. */
     get lastBlocks() { return (lastBlocks ??= blockSources()); },
     /** Normal documents keep the immediate render path. */
     render(text, { frontmatter = false } = {}) {
-      largeDocument = text.length > 256 * 1024;
-      return sanitize((frontmatter ? frontmatterHtml(text) : '') + md.render(stripFrontmatter(text)));
+      markdown.setLarge(text.length > 256 * 1024);
+      const html = sanitize((frontmatter ? frontmatterHtml(text) : '') + md.render(stripFrontmatter(text)));
+      recordBlocks(blocks.src, blocks.maps);
+      return html;
     },
-    /** Parse once so references, footnotes and duplicate heading IDs stay global.
-     * Yield only at balanced block boundaries, never through a list or table. */
-    *chunks(text, { frontmatter = false } = {}) {
-      largeDocument = true;
-      const env = {};
-      const tokens = md.parse(stripFrontmatter(text), env);
-      let start = 0;
-      let depth = 0;
-      // Raw HTML can open a container in one block and close it much later.
-      // Never split while one is open, so a boundary can't change its structure.
-      let htmlOpen = 0;
-      for (let end = 0; end < tokens.length; end++) {
-        depth += tokens[end].nesting;
-        if (tokens[end].type === 'html_block') htmlOpen = Math.max(0, htmlOpen + htmlBalance(tokens[end].content));
-        const last = end === tokens.length - 1;
-        if (last || (depth === 0 && htmlOpen === 0 && end - start >= (start === 0 ? 400 : 1600))) {
-          largeDocument = true;
-          const card = start === 0 && frontmatter ? frontmatterHtml(text) : '';
-          yield sanitize(card + md.renderer.render(tokens.slice(start, end + 1), md.options, env));
-          start = end + 1;
-        }
-      }
+    /** A quick render of the first screen of a large document. Not recorded as
+     * the document's blocks: the full render replaces it. */
+    prefix(text, { frontmatter = false } = {}) {
+      markdown.setLarge(true);
+      const body = documentPrefix(stripFrontmatter(text));
+      return sanitize((frontmatter ? frontmatterHtml(text) : '') + md.render(body));
+    },
+    /** Large documents: sanitized HTML chunks, parsed off the main thread
+     * when a worker is available. */
+    chunksAsync(text, options = {}) {
+      return typeof Worker === 'function' ? workerChunks(text, options) : mainThreadChunks(text, options);
     },
   };
 }

@@ -246,7 +246,7 @@ async function renderDocument() {
   if (!tab) return;
   revokeObjectUrls();
   const isCurrent = () => version === renderVersion && tab === activeTab;
-  const large = state.text.length > 256 * 1024 && renderer.chunks;
+  const large = state.text.length > 256 * 1024 && renderer.chunksAsync;
   const restoreY = tab.scrollY;
   readerMoved = false;
   outlineCount = 0;
@@ -256,11 +256,25 @@ async function renderDocument() {
   find.setContainer(els.content);
   let foundRemote = false;
   const options = { frontmatter: state.showFrontmatter };
-  const chunks = large ? renderer.chunks(state.text, options) : [renderer.render(state.text, options)];
+  const chunks = large ? renderer.chunksAsync(state.text, options) : [renderer.render(state.text, options)];
   els.content.setAttribute('aria-busy', 'true');
+  // A large document shows a quick render of its first screen while the full
+  // parse runs; the first real chunk replaces it.
+  let prefix = null;
+  if (large) {
+    prefix = document.createElement('div');
+    prefix.className = 'render-chunk render-prefix';
+    prefix.innerHTML = renderer.prefix(state.text, options);
+    prefix.querySelectorAll('img').forEach((img) => { img.removeAttribute('srcset'); if (/^https?:/i.test(img.getAttribute('src') || '')) img.removeAttribute('src'); });
+    addCopyButtons(prefix);
+    els.content.append(prefix);
+    window.scrollTo({ top: tab.scrollY, behavior: 'instant' });
+  }
   let first = true;
-  for (const html of chunks) {
+  for await (const html of chunks) {
     if (!isCurrent()) return;
+    prefix?.remove();
+    prefix = null;
     const fragment = document.createElement('template');
     fragment.innerHTML = html;
     fragment.content.querySelectorAll('img').forEach((img) => {
